@@ -9,16 +9,16 @@ def get_options(args=None):
         description="Attention based model for solving the Travelling Salesman Problem with Reinforcement Learning")
 
     # Data
-    parser.add_argument('--problem', default='tsp', help="The problem to solve, default 'tsp'")
+    parser.add_argument('--problem', default='dynamic_tsp', help="The problem to solve, default 'tsp'")
     parser.add_argument('--graph_size', type=int, default=20, help="The size of the problem graph")
-    parser.add_argument('--batch_size', type=int, default=512, help='Number of instances per batch during training')
-    parser.add_argument('--epoch_size', type=int, default=1280000, help='Number of instances per epoch during training')
+    parser.add_argument('--batch_size', type=int, default=64, help='Number of instances per batch during training')
+    parser.add_argument('--epoch_size', type=int, default=12800, help='Number of instances per epoch during training')
     parser.add_argument('--val_size', type=int, default=10000,
                         help='Number of instances used for reporting validation performance')
     parser.add_argument('--val_dataset', type=str, default=None, help='Dataset file to use for validation')
 
     # Model
-    parser.add_argument('--model', default='attention', help="Model, 'attention' (default) or 'pointer'")
+    parser.add_argument('--model', default='st_attention', help="Model, 'attention' (default) or 'pointer'")
     parser.add_argument('--embedding_dim', type=int, default=128, help='Dimension of input embedding')
     parser.add_argument('--hidden_dim', type=int, default=128, help='Dimension of hidden layers in Enc/Dec')
     parser.add_argument('--n_encode_layers', type=int, default=3,
@@ -47,7 +47,7 @@ def get_options(args=None):
     parser.add_argument('--bl_warmup_epochs', type=int, default=None,
                         help='Number of epochs to warmup the baseline, default None means 1 for rollout (exponential '
                              'used for warmup phase), 0 otherwise. Can only be used with rollout baseline.')
-    parser.add_argument('--eval_batch_size', type=int, default=1024,
+    parser.add_argument('--eval_batch_size', type=int, default=64,
                         help="Batch size to use during (baseline) evaluation")
     parser.add_argument('--checkpoint_encoder', action='store_true',
                         help='Set to decrease memory usage by checkpointing encoder')

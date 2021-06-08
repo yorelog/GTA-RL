@@ -39,9 +39,13 @@ class StateTSP(NamedTuple):
         )
 
     @staticmethod
-    def initialize(loc, visited_dtype=torch.uint8):
+    def initialize(loc, visited_dtype=torch.uint8, index=-1):
 
-        batch_size, n_loc, _ = loc.size()
+        if index != -1:
+            batch_size, n_loc, _ = loc[index].size()
+        else:
+            batch_size, n_loc, _ = loc.size()
+
         prev_a = torch.zeros(batch_size, 1, dtype=torch.long, device=loc.device)
         return StateTSP(
             loc=loc,

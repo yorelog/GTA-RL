@@ -19,7 +19,13 @@ class TSP(object):
         ).all(), "Invalid tour"
 
         # Gather dataset in order of tour
-        d = dataset.gather(1, pi.unsqueeze(-1).expand_as(dataset))
+        if len(dataset.size()) == 4:
+            d = dataset.gather(2, pi.unsqueeze(-1).unsqueeze(1).expand_as(dataset)).diagonal(dim1=1, dim2=2)
+            d = d.permute(0,2,1)
+            #dataset = dataset[:,0,:,:]
+            #d1 = dataset.gather(1, pi.unsqueeze(-1).expand_as(dataset))
+        else:
+            d = dataset.gather(1, pi.unsqueeze(-1).expand_as(dataset))
 
         # Length is distance (L2-norm of difference) from each next location from its prev and of last from first
         return (d[:, 1:] - d[:, :-1]).norm(p=2, dim=2).sum(1) + (d[:, 0] - d[:, -1]).norm(p=2, dim=1), None
@@ -54,7 +60,7 @@ class TSP(object):
 
 class TSPDataset(Dataset):
     
-    def __init__(self, filename=None, size=50, num_samples=1000000, offset=0, distribution=None):
+    def __init__(self, filename=None, size=50, num_samples=1000000, offset=0, distribution=None, is_dynamic=False):
         super(TSPDataset, self).__init__()
 
         self.data_set = []
@@ -66,7 +72,11 @@ class TSPDataset(Dataset):
                 self.data = [torch.FloatTensor(row) for row in (data[offset:offset+num_samples])]
         else:
             # Sample points randomly in [0, 1] square
-            self.data = [torch.FloatTensor(size, 2).uniform_(0, 1) for i in range(num_samples)]
+            if is_dynamic:
+                self.data = [self.get_dynamic_data(size, 0.1) for i in range(num_samples)]
+            else:
+                self.data = [torch.FloatTensor(size, 2).uniform_(0, 1) for i in range(num_samples)]
+
 
         self.size = len(self.data)
 
@@ -75,3 +85,29 @@ class TSPDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.data[idx]
+
+    def as_tensor(self):
+        return torch.stack(self.data, dim=0)
+
+    def get_dynamic_data(self, size, strength=0.01):
+        total_nodes = []
+        next = torch.FloatTensor(size, 2).uniform_(0, 1) # Create initial coordinates
+        for i in range(size):
+            total_nodes.append(next)
+            next = torch.clip(torch.add(next, torch.FloatTensor(size, 2).uniform_(-strength, strength))
+                              , 0, 1) # Change the previous coordinates between 0 and 1
+        return torch.stack(total_nodes, dim=0)
+
+class DTSP(TSP):
+    @staticmethod
+    def make_dataset(*args, **kwargs):
+        kwargs['is_dynamic'] = True
+        return TSPDataset(*args, **kwargs)
+
+    @staticmethod
+    def make_state(*args, **kwargs):
+        return StateTSP.initialize(*args, **kwargs)
+
+
+
+

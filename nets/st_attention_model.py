@@ -39,7 +39,7 @@ class AttentionModelFixed(NamedTuple):
         )
 
 
-class AttentionModel(nn.Module):
+class StAttentionModel(nn.Module):
 
     def __init__(self,
                  embedding_dim,
@@ -53,7 +53,7 @@ class AttentionModel(nn.Module):
                  n_heads=8,
                  checkpoint_encoder=False,
                  shrink_size=None):
-        super(AttentionModel, self).__init__()
+        super(StAttentionModel, self).__init__()
 
         self.embedding_dim = embedding_dim
         self.hidden_dim = hidden_dim
@@ -64,7 +64,6 @@ class AttentionModel(nn.Module):
         self.is_vrp = problem.NAME == 'cvrp' or problem.NAME == 'sdvrp'
         self.is_orienteering = problem.NAME == 'op'
         self.is_pctsp = problem.NAME == 'pctsp'
-        self.is_dynamic_tsp = problem.NAME == 'dynamic_tsp'
 
         self.tanh_clipping = tanh_clipping
 
@@ -106,7 +105,8 @@ class AttentionModel(nn.Module):
             n_heads=n_heads,
             embed_dim=embedding_dim,
             n_layers=self.n_encode_layers,
-            normalization=normalization
+            normalization=normalization,
+            st_attention=True
         )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
@@ -130,14 +130,15 @@ class AttentionModel(nn.Module):
         :return:
         """
         original_input = input
-        if len(input.size()) == 4:
-            input = input[:, 0, :, :]
-
 
         if self.checkpoint_encoder and self.training:  # Only checkpoint if we need gradients
             embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
         else:
             embeddings, _ = self.embedder(self._init_embed(input))
+
+        if len(input.size()) == 4:
+            embeddings = embeddings[:, 0, :, :]
+            input = input[:, 0, :, :]
 
         _log_p, pi = self._inner(input, embeddings)
 
