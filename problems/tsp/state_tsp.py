@@ -42,9 +42,9 @@ class StateTSP(NamedTuple):
     def initialize(loc, visited_dtype=torch.uint8, index=-1):
 
         if index != -1:
-            batch_size, n_loc, _ = loc[index].size()
-        else:
-            batch_size, n_loc, _ = loc.size()
+            loc = loc[:, index, :, :]
+
+        batch_size, n_loc, _ = loc.size()
 
         prev_a = torch.zeros(batch_size, 1, dtype=torch.long, device=loc.device)
         return StateTSP(
@@ -66,6 +66,11 @@ class StateTSP(NamedTuple):
             cur_coord=None,
             i=torch.zeros(1, dtype=torch.int64, device=loc.device)  # Vector with length num_steps
         )
+
+    def update_state(self, loc):
+         return self._replace(loc=loc,
+                              dist=(loc[:, :, None, :] - loc[:, None, :, :]).norm(p=2, dim=-1))
+
 
     def get_final_cost(self):
 

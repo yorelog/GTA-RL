@@ -79,6 +79,7 @@ def load_args(filename):
 
 def load_model(path, epoch=None):
     from nets.attention_model import AttentionModel
+    from nets.st_attention_model import StAttentionModel
     from nets.pointer_network import PointerNetwork
 
     if os.path.isfile(path):
@@ -101,6 +102,7 @@ def load_model(path, epoch=None):
 
     model_class = {
         'attention': AttentionModel,
+        'st_attention': StAttentionModel,
         'pointer': PointerNetwork
     }.get(args.get('model', 'attention'), None)
     assert model_class is not None, "Unknown model: {}".format(model_class)

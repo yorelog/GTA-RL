@@ -136,14 +136,14 @@ class StAttentionModel(nn.Module):
         else:
             embeddings, _ = self.embedder(self._init_embed(input))
 
-        if len(input.size()) == 4:
-            embeddings = embeddings[:, 0, :, :]
-            input = input[:, 0, :, :]
+        #if len(input.size()) == 4:
+        #    embeddings = embeddings[:, 0, :, :]
+        #    input = input[:, 0, :, :]
 
         _log_p, pi = self._inner(input, embeddings)
 
         cost, mask = self.problem.get_costs(original_input, pi)
-        # Log likelyhood is calculated within the model since returning it per action does not work well with
+        # Log likelihood is calculated within the model since returning it per action does not work well with
         # DataParallel since sequences can be of different lengths
         ll = self._calc_log_likelihood(_log_p, pi, mask)
         if return_pi:
@@ -232,16 +232,21 @@ class StAttentionModel(nn.Module):
         outputs = []
         sequences = []
 
-        state = self.problem.make_state(input)
+        state = self.problem.make_state(loc=input[:, 0, :, :])
 
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
-        fixed = self._precompute(embeddings)
+        fixed = self._precompute(embeddings[:, 0, :, :])
 
         batch_size = state.ids.size(0)
 
         # Perform decoding steps
         i = 0
         while not (self.shrink_size is None and state.all_finished()):
+
+            #current_emb, _ = self.embedder(embeddings[:, :i+1, :, :])
+
+            fixed = self._precompute(embeddings[:, i, :, :])
+            state = state.update_state(input[:, i, :, :])
 
             if self.shrink_size is not None:
                 unfinished = torch.nonzero(state.get_finished() == 0)
@@ -256,6 +261,7 @@ class StAttentionModel(nn.Module):
                     fixed = fixed[unfinished]
 
             log_p, mask = self._get_log_p(fixed, state)
+
 
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected = self._select_node(log_p.exp()[:, 0, :], mask[:, 0, :])  # Squeeze out steps dimension
@@ -276,6 +282,8 @@ class StAttentionModel(nn.Module):
             sequences.append(selected)
 
             i += 1
+            #state = self.problem.make_state(loc=input, index=i)
+
 
         # Collected lists, return Tensor
         return torch.stack(outputs, 1), torch.stack(sequences, 1)
@@ -333,7 +341,9 @@ class StAttentionModel(nn.Module):
             self._make_heads(glimpse_val_fixed, num_steps),
             logit_key_fixed.contiguous()
         )
+
         return AttentionModelFixed(embeddings, fixed_context, *fixed_attention_node_data)
+
 
     def _get_log_p_topk(self, fixed, state, k=None, normalize=True):
         log_p, _ = self._get_log_p(fixed, state, normalize=normalize)
