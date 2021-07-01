@@ -13,6 +13,7 @@ import argparse
 import numpy as np
 from utils.data_utils import load_dataset, save_dataset
 from gurobipy import *
+import pickle
 
 
 def solve_euclidian_tsp(points, threads=0, timeout=None, gap=None):
@@ -108,52 +109,17 @@ def solve_euclidian_tsp(points, threads=0, timeout=None, gap=None):
 
     return m.objVal, tour
 
-def solve_dynamic_euclidian_tsp(points, threads=0, timeout=None, gap=5):
+def solve_dynamic_euclidian_tsp(points, threads=0, timeout=None, gap=None):
     """
-    Solves the Euclidan TSP problem to optimality using the MIP formulation
-    with lazy subtour elimination constraint generation.
-    :param points: list of (x, y) coordinate
+    Solves the Dynamic Euclidan TSP problem to optimality using the MIP formulation
+    :param points: list of (t, x, y) coordinate
     :return:
     """
 
     n = len(points)
 
-    # Callback - use lazy constraints to eliminate sub-tours
-
-    def subtourelim(model, where):
-        if where == GRB.Callback.MIPSOL:
-            # make a list of edges selected in the solution
-            vals = model.cbGetSolution(model._vars)
-            selected = tuplelist((t, i, j) for t, i, j in model._vars.keys() if vals[t, i, j] > 0.5)
-            # find the shortest cycle in the selected edge list
-            tour = subtour(selected)
-            if len(tour) < n:
-                # add subtour elimination constraint for every pair of cities in tour
-                model.cbLazy(quicksum(model._vars[t, i, j]
-                                      for t, i, j in itertools.combinations(tour, 2))
-                             <= len(tour) - 1)
-
-    # Given a tuplelist of edges, find the shortest subtour
-
-    def subtour(edges):
-        unvisited = list(range(n))
-        cycle = range(n + 1)  # initial length has 1 more city
-        while unvisited:  # true if list is non-empty
-            thiscycle = []
-            neighbors = unvisited
-            while neighbors:
-                current = neighbors[0]
-                thiscycle.append(current)
-                unvisited.remove(current)
-                neighbors = [j for t, i, j in edges.select("*", current, '*') if j in unvisited]
-            if len(cycle) > len(thiscycle):
-                cycle = thiscycle
-        return cycle
-
     # Dictionary of Euclidean distance between each pair of points
 
-    dist = {(t, i, j): math.sqrt(sum((points[t][i][k] - points[t][j][k]) ** 2 for k in range(2)))
-            for t in range(n) for i in range(n) for j in range(i)}
 
     dist = {}
     for i in range(n):
@@ -163,58 +129,33 @@ def solve_dynamic_euclidian_tsp(points, threads=0, timeout=None, gap=5):
                 if i != j:
                     dist[t, i, j] = math.sqrt(sum((points[t][i][k] - points[nxt][j][k]) ** 2 for k in range(2)))
 
-
     m = Model()
     m.Params.outputFlag = False
-
     # Create variables
 
     vars = m.addVars(dist.keys(), obj=dist, vtype=GRB.BINARY, name='e')
-    #for t, i, j in vars.keys():
-    #    vars[t, j, i] = vars[t, i, j] # edge in opposite direction
 
-    # You could use Python looping constructs and m.addVar() to create
-    # these decision variables instead.  The following would be equivalent
-    # to the preceding m.addVars() call...
-    #
-    # vars = tupledict()
-    # for i,j in dist.keys():
-    #   vars[i,j] = m.addVar(obj=dist[i,j], vtype=GRB.BINARY,
-    #                        name='e[%d,%d]'%(i,j))
-
-
-    # Add degree-2 constraint
-
-    #m.addConstrs(vars.sum(i,'*') == 2 for i in range(n))
-
-    # Using Python looping constructs, the preceding would be...
-    #
     # for i in range(n):
     #   m.addConstr(sum(vars[i,j] for j in range(n)) == 2)
 
-    for i in range(n): # for a node there should 2 connection over the entire time horizon
+    for i in range(n): # for a node there should 2 connections over the entire time horizon
         m.addConstr(sum(vars[t, i, j] + vars[t, j, i] for t in range(n) for j in range(n) if i != j ) == 2)
 
     for t in range(n): # At one time step there should be only one connection
         m.addConstr(sum(vars[t, i, j] for i in range(n) for j in range(n)  if i != j ) == 1)
 
-    for i in range(n): # At one time step there should be only one connection
+    # If there is a connection between i,j at time t then
+    # 1. i should be connected to some node at time t-1
+    # 2. j should be connected to some node at time t+1
+    for i in range(n):
         for j in range(n):
             if i != j:
                 for t in range(n):
-
-                    prev = t-1
-                    nxt = t+1
-                    if t == 0:
-                        prev = n-1
-                    if t == n-1:
-                        nxt = 0
+                    nxt = 0 if (t == n - 1) else t + 1
+                    prev = n-1 if (t == 0) else t-1
 
                     m.addConstr(vars[t, i, j] <= sum(vars[nxt, j, k] for k in range(n) if k != j))
                     m.addConstr(vars[t, i, j] <= sum(vars[prev, k, i] for k in range(n) if k != i))
-
-            #m.addConstr(sum(vars[nxt, i, j] for j in range(n)  if i != j) +
-            #            sum(vars[prev, i, j] for j in range(n)  if i != j) <= 1)
 
     # Optimize model
 
@@ -229,19 +170,23 @@ def solve_dynamic_euclidian_tsp(points, threads=0, timeout=None, gap=5):
 
     vals = m.getAttr('x', vars)
     selected = tuplelist((t, i, j) for t, i, j in vals.keys() if vals[t, i, j] > 0.5)
+
+    # sort the selected nodes in time
     tour = [i[1] for i in sorted(selected, key=lambda tup: tup[0])]
 
-    #tour = subtour(selected)
     assert len(tour) == n
 
     return m.objVal, tour
 
 
-def solve_all_gurobi(dataset):
+def solve_all_gurobi(dataset, dynamic, time):
     results = []
     for i, instance in enumerate(dataset):
         print ("Solving instance {}".format(i))
-        result = solve_euclidian_tsp(instance)
+        if dynamic:
+            result = solve_dynamic_euclidian_tsp(instance, timeout=time)
+        else:
+            result = solve_euclidian_tsp(instance, timeout=time)
         results.append(result)
     return results
 
@@ -274,7 +219,7 @@ def plot_tsp(xy, tour, ax1, total_xy=None):
     ax1.set_xlim(0, 1)
     ax1.set_ylim(0, 1)
 
-    xs, ys = xy[tour].transpose()
+
     xs, ys = xy[tour].transpose()
     dx = np.roll(xs, -1) - xs
     dy = np.roll(ys, -1) - ys
@@ -306,7 +251,15 @@ def plot_tsp(xy, tour, ax1, total_xy=None):
         scale=1,
     )
 
-    ax1.set_title('{} nodes, total length {:.2f}'.format(len(tour), lengths[-1]))
+    ax1.set_title('{} nodes, total length {:.5f}'.format(len(tour), lengths[-1]))
+
+def load_from_path(filename):
+
+    assert os.path.splitext(filename)[1] == '.pkl'
+    with open(filename, 'rb') as f:
+        data = pickle.load(f)
+
+    return data
 
 if __name__=="__main__":
     np.random.seed(1234)

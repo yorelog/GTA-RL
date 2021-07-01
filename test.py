@@ -1,25 +1,18 @@
 import os
 import numpy as np
 import torch
+import time
+from matplotlib import pyplot as plt
+import matplotlib.cm as cm
+from matplotlib.collections import PatchCollection
+from matplotlib.patches import Rectangle
+from matplotlib.lines import Line2D
 
 from utils import load_model
 from problems.tsp.tsp_gurobi import *
 
-test_dynamic = True
+  # Put in evaluation mode to not track gradients
 
-if test_dynamic:
-    model, _ = load_model('outputs/dynamic_tsp_20/run_20210613T202716')
-else:
-    model, _ = load_model('outputs/tsp_20/run_20210608T170039')
-    model, _ = load_model('pretrained/tsp_20/')
-
-
-model.eval()  # Put in evaluation mode to not track gradients
-
-num_nodes = 20
-seed = None
-
-np.random.seed(1234)
 
 def get(num_nodes, threshold):
     stack = []
@@ -31,11 +24,6 @@ def get(num_nodes, threshold):
     np_stack = np.array(stack)
 
     return np_stack
-
-xy = get(num_nodes, 0.1)
-#xy = np.random.uniform(0, 1, (20, 2))
-
-
 
 def make_oracle(model, xy, temperature=1.0):
     num_nodes = len(xy)
@@ -119,32 +107,34 @@ def make_dynamic_oracle(model, xy, temperature=1.0):
     return oracle
 
 
-oracle = make_dynamic_oracle(model, xy) if test_dynamic else make_oracle(model, xy)
-
-sample = False
-tour = []
-tour_p = []
-while (len(tour) < len(xy)):
-    p = oracle(tour)
-
-    if sample:
-        # Advertising the Gumbel-Max trick
-        g = -np.log(-np.log(np.random.rand(*p.shape)))
-        i = np.argmax(np.log(p) + g)
-        # i = np.random.multinomial(1, p)
-    else:
-        # Greedy
-        i = np.argmax(p)
-    tour.append(i)
-    tour_p.append(p)
 
 
+def find_tour(xy, model, test_dynamic):
 
-from matplotlib import pyplot as plt
-import matplotlib.cm as cm
-from matplotlib.collections import PatchCollection
-from matplotlib.patches import Rectangle
-from matplotlib.lines import Line2D
+    model.eval()
+
+    oracle = make_dynamic_oracle(model, xy) if test_dynamic else make_oracle(model, xy)
+    sample = False
+    tour = []
+    tour_p = []
+    while (len(tour) < len(xy)):
+        p = oracle(tour)
+
+        if sample:
+            # Advertising the Gumbel-Max trick
+            g = -np.log(-np.log(np.random.rand(*p.shape)))
+            i = np.argmax(np.log(p) + g)
+            # i = np.random.multinomial(1, p)
+        else:
+            # Greedy
+            i = np.argmax(p)
+        tour.append(i)
+        tour_p.append(p)
+    return tour_p, tour
+
+
+
+
 
 
 # Code inspired by Google OR Tools plot:
@@ -192,31 +182,87 @@ def plot_tsp(xy, tour, ax1, total_xy=None, title=""):
 
     ax1.set_title('Algorithm {}, {} nodes, total length {:.2f}'.format(title, len(tour), lengths[-1]))
 
+def run_test(opts):
+
+    if opts.dynamic:
+        xy = get(opts.graph_size, opts.intensity)
+    else:
+        xy = np.random.uniform(0, 1, (opts.graph_size, 2))
+
+    model, _ = load_model(path=opts.load_path)
+
+    tour_p, tour = find_tour(xy, model, not opts.baseline)
+
+    ### Plotting
+    fig, ax = plt.subplots(figsize=(10, 10))
+    if len(xy.shape) == 3:
+        ordered = np.array([np.arange(len(tour)), tour]).T
+        ordered = ordered[ordered[:, 1].argsort()]
+        coords = xy[ordered[:, 0], ordered[:, 1]]
+        plot_tsp(coords, tour, ax, xy, "RL: ")
+    else:
+        plot_tsp(xy, tour, ax)
+
+    print("RL: ", tour)
+
+    if opts.use_gurobi:
+
+        fig1, ax1 = plt.subplots(figsize=(10, 10))
+        start_time = time.time()
+        tour_length, tour_gb = solve_dynamic_euclidian_tsp(xy)
+        print("Gurobi Time: ", time.time() - start_time)
+        if len(xy.shape) == 3:
+            ordered = np.array([np.arange(len(tour_gb)), tour_gb]).T
+            ordered = ordered[ordered[:, 1].argsort()]
+            coords = xy[ordered[:, 0], ordered[:, 1]]
+            plot_tsp(coords, tour_gb, ax1, xy, "LP: ")
+        else:
+            plot_tsp(xy, tour_gb, ax1)
+
+        print("LP: ", tour_gb)
+    plt.show()
+
+np.random.seed(1234)
+
+def test_gurobi(filename, dynamic, time=60):
+
+    data = load_from_path(filename)
+    results = solve_all_gurobi(data, dynamic, time)
+    lengths = np.array(results)[:, 0]
+    print("Results: ", np.mean(lengths))
+    return results
 
 
-fig, ax = plt.subplots(figsize=(10, 10))
+if __name__=="__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dynamic", action='store_true', help="Solve the Dynamic TSP")
+    parser.add_argument('--graph_size', type=int, default=20, help="The size of the problem graph")
+    parser.add_argument('--intensity', type=int, default=0.1, help="How much dynamic nodes should change over time")
+    parser.add_argument("--use_gurobi", action='store_true', help="Use gurobi optimizer to solve the TSP")
+    parser.add_argument("--baseline", action='store_true', help="Use static baseline")
+    parser.add_argument('--load_path', help='Path to load model parameters and optimizer state from')
+    parser.add_argument('--load_data', help='Path to load dataset')
+    parser.add_argument('--gurobi_time', type=int, default=20, help="Time limit for Gurobi Solver")
+    parser.add_argument('--problem', type=str, default=20, help="Problem to solve")
 
-if len(xy.shape) == 3:
-    ordered = np.array([np.arange(len(tour)), tour]).T
-    ordered = ordered[ordered[:,1].argsort()]
-    coords = xy[ordered[:,0], ordered[:,1]]
-    plot_tsp(coords, tour, ax, xy, "RL: ")
-else:
-    plot_tsp(xy, tour, ax)
+    opts = parser.parse_args(args=None)
+    opts.use_gurobi = True
+    opts.dynamic = True
+    opts.baseline = False
 
-print("RL: ", tour)
+    if not opts.baseline:
+        opts.load_path = 'outputs/dynamic_tsp_20/run_20210616T122912'
+    else:
+        opts.load_path = 'pretrained/tsp_20/'
 
-fig1, ax1 = plt.subplots(figsize=(10, 10))
+    if opts.dynamic:
+        opts.load_data = 'data/dynamic_tsp/dynamic_tsp20_test_seed1234.pkl'
+    else:
+        opts.load_data = 'data/tsp/tsp20_test_seed1234.pkl'
 
-tour_length, tour = solve_dynamic_euclidian_tsp(xy)
-if len(xy.shape) == 3:
-    ordered = np.array([np.arange(len(tour)), tour]).T
-    ordered = ordered[ordered[:,1].argsort()]
-    coords = xy[ordered[:,0], ordered[:,1]]
-    plot_tsp(coords, tour, ax1, xy, "LP: ")
-else:
-    plot_tsp(xy, tour, ax1)
+    if opts.use_gurobi:
+        test_gurobi(opts.load_data, opts.dynamic, opts.gurobi_time)
+    else:
+        run_test(opts)
 
-print("LP: ", tour)
-plt.show()
 # %%

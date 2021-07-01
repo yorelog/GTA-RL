@@ -37,6 +37,7 @@ class CVRP(object):
         d = demand_with_depot.gather(1, pi)
 
         used_cap = torch.zeros_like(dataset['demand'][:, 0])
+
         for i in range(pi.size(1)):
             used_cap += d[:, i]  # This will reset/make capacity negative if i == 0, e.g. depot visited
             # Cannot use less than 0
@@ -44,8 +45,15 @@ class CVRP(object):
             assert (used_cap <= CVRP.VEHICLE_CAPACITY + 1e-5).all(), "Used more than capacity"
 
         # Gather dataset in order of tour
-        loc_with_depot = torch.cat((dataset['depot'][:, None, :], dataset['loc']), 1)
-        d = loc_with_depot.gather(1, pi[..., None].expand(*pi.size(), loc_with_depot.size(-1)))
+        if len(dataset['loc'].size()) == 4:
+            batch, time, nodes, coords = dataset['loc'].size()
+            loc_with_depot = torch.cat((dataset['depot'][:, None, None, :].expand((batch, time, 1, coords)), dataset['loc']), 2)
+            pi_ordered = pi[:, None, :, None].expand((-1, time, -1, coords))
+            d = loc_with_depot.gather(2, pi_ordered).diagonal(dim1=1, dim2=2)
+            d = d.permute(0, 2, 1)
+        else:
+            loc_with_depot = torch.cat((dataset['depot'][:, None, :], dataset['loc']), 1)
+            d = loc_with_depot.gather(1, pi[..., None].expand(*pi.size(), loc_with_depot.size(-1)))
 
         # Length is distance (L2-norm of difference) of each next location to its prev and of first and last to depot
         return (
@@ -165,7 +173,7 @@ def make_instance(args):
 
 class VRPDataset(Dataset):
     
-    def __init__(self, filename=None, size=50, num_samples=1000000, offset=0, distribution=None):
+    def __init__(self, filename=None, size=50, num_samples=1000000, offset=0, distribution=None, is_dynamic = False):
         super(VRPDataset, self).__init__()
 
         self.data_set = []
@@ -186,15 +194,26 @@ class VRPDataset(Dataset):
                 100: 50.
             }
 
-            self.data = [
-                {
-                    'loc': torch.FloatTensor(size, 2).uniform_(0, 1),
-                    # Uniform 1 - 9, scaled by capacities
-                    'demand': (torch.FloatTensor(size).uniform_(0, 9).int() + 1).float() / CAPACITIES[size],
-                    'depot': torch.FloatTensor(2).uniform_(0, 1)
-                }
-                for i in range(num_samples)
-            ]
+            if is_dynamic:
+                self.data = [
+                    {
+                        'loc': self.get_dynamic_data(size, strength=0.1),
+                        # Uniform 1 - 9, scaled by capacities
+                        'demand': (torch.FloatTensor(size).uniform_(0, 9).int() + 1).float() / CAPACITIES[size],
+                        'depot': torch.FloatTensor(2).uniform_(0, 1)
+                    }
+                    for i in range(num_samples)
+                ]
+            else:
+                self.data = [
+                    {
+                        'loc': torch.FloatTensor(size, 2).uniform_(0, 1),
+                        # Uniform 1 - 9, scaled by capacities
+                        'demand': (torch.FloatTensor(size).uniform_(0, 9).int() + 1).float() / CAPACITIES[size],
+                        'depot': torch.FloatTensor(2).uniform_(0, 1)
+                    }
+                    for i in range(num_samples)
+                ]
 
         self.size = len(self.data)
 
@@ -203,3 +222,18 @@ class VRPDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.data[idx]
+
+    def get_dynamic_data(self, size, strength=0.01):
+        total_nodes = []
+        next = torch.FloatTensor(size, 2).uniform_(0, 1) # Create initial coordinates
+        for i in range(size*2):
+            total_nodes.append(next)
+            next = torch.clip(torch.add(next, torch.FloatTensor(size, 2).uniform_(-strength, strength))
+                              , 0, 1) # Change the previous coordinates between 0 and 1
+        return torch.stack(total_nodes, dim=0)
+
+class DCVRP(CVRP):
+    @staticmethod
+    def make_dataset(*args, **kwargs):
+        kwargs['is_dynamic'] = True
+        return VRPDataset(*args, **kwargs)

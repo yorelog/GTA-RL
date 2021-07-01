@@ -177,7 +177,7 @@ def _eval_dataset(model, dataset, width, softmax_temp, opts, device):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("datasets", nargs='+', help="Filename of the dataset(s) to evaluate")
+    parser.add_argument("--datasets", type=str, default=None, help="Filename of the dataset(s) to evaluate")
     parser.add_argument("-f", action='store_true', help="Set true to overwrite")
     parser.add_argument("-o", default=None, help="Name of the results file to write")
     parser.add_argument('--val_size', type=int, default=10000,
@@ -205,6 +205,17 @@ if __name__ == "__main__":
                         help='Use multiprocessing to parallelize over multiple GPUs')
 
     opts = parser.parse_args()
+
+    dynamic = True
+    if dynamic:
+        opts.datasets = ["data/dynamic_tsp/dynamic_tsp20_test_seed1234.pkl"]
+        opts.model = "outputs/order/dynamic_tsp_20/run_10/"
+    else:
+        opts.datasets = ["data/tsp/tsp20_test_seed1234.pkl"]
+        opts.model = "pretrained/tsp_20/"
+
+    opts.decode_strategy = "bs"
+    opts.width = [12]
 
     assert opts.o is None or (len(opts.datasets) == 1 and len(opts.width) <= 1), \
         "Cannot specify result filename with more than one dataset or more than one width"

@@ -4,10 +4,12 @@ from typing import NamedTuple
 from utils.lexsort import torch_lexsort
 
 
-def beam_search(*args, **kwargs):
-    beams, final_state = _beam_search(*args, **kwargs)
+def beam_search(dynamic, *args, **kwargs):
+    if dynamic:
+        beams, final_state = _dynamic_beam_search(*args, **kwargs)
+    else:
+        beams, final_state = _beam_search(*args, **kwargs)
     return get_beam_search_results(beams, final_state)
-
 
 def get_beam_search_results(beams, final_state):
     beam = beams[-1]  # Final beam
@@ -21,6 +23,42 @@ def get_beam_search_results(beams, final_state):
     solutions = final_state.construct_solutions(backtrack(parents, actions))
     return beam.score, solutions, final_state.get_final_cost()[:, 0], final_state.ids.view(-1), beam.batch_size
 
+
+def _dynamic_beam_search(problem, input, model, beam_size, propose_expansions=None,
+                keep_states=False):
+
+    i = 0
+
+    state = problem.make_state(input[:, i, :, :])
+    beam = BatchBeam.initialize(state)
+
+    embeddings, _ = model.embedder(model._init_embed(input))
+
+    # Initial state
+    beams = [beam if keep_states else beam.clear_state()]
+
+    # Perform decoding steps
+    while not beam.all_finished():
+        beam = beam.update_state(input, i)
+        fixed = model._precompute(embeddings[:, i, :, :])
+        # Use the model to propose and score expansions
+        parent, action, score = beam.propose_expansions() if propose_expansions is None else propose_expansions(beam, fixed)
+        if parent is None:
+            return beams, None
+
+        # Expand and update the state according to the selected actions
+        beam = beam.expand(parent, action, score=score)
+
+        # Get topk
+        beam = beam.topk(beam_size)
+
+        # Collect output of step
+        beams.append(beam if keep_states else beam.clear_state())
+
+        i += 1
+
+    # Return the final state separately since beams may not keep state
+    return beams, beam.state
 
 def _beam_search(state, beam_size, propose_expansions=None,
                 keep_states=False):
@@ -110,6 +148,10 @@ class BatchBeam(NamedTuple):
             parent=parent,
             action=action
         )
+
+    def update_state(self, input, index):
+        new_state = self.state.update_state(input=input, index=index)
+        return self._replace(state=new_state)
 
     def topk(self, k):
         idx_topk = segment_topk_idx(self.score, k, self.ids)

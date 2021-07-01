@@ -52,7 +52,8 @@ class AttentionModel(nn.Module):
                  normalization='batch',
                  n_heads=8,
                  checkpoint_encoder=False,
-                 shrink_size=None):
+                 shrink_size=None,
+                 use_single_time=False):
         super(AttentionModel, self).__init__()
 
         self.embedding_dim = embedding_dim
@@ -75,6 +76,8 @@ class AttentionModel(nn.Module):
         self.n_heads = n_heads
         self.checkpoint_encoder = checkpoint_encoder
         self.shrink_size = shrink_size
+
+        self.use_single_time = use_single_time
 
         # Problem specific context parameters (placeholder and step context dimension)
         if self.is_vrp or self.is_orienteering or self.is_pctsp:
@@ -130,8 +133,9 @@ class AttentionModel(nn.Module):
         :return:
         """
         original_input = input
-        if len(input.size()) == 4:
-            input = input[:, 0, :, :]
+        input = self.prepare_input(input)
+        #if len(input.size()) == 4:
+        #    input = input[:, 0, :, :]
 
 
         if self.checkpoint_encoder and self.training:  # Only checkpoint if we need gradients
@@ -149,6 +153,7 @@ class AttentionModel(nn.Module):
             return cost, ll, pi
 
         return cost, ll
+
 
     def beam_search(self, *args, **kwargs):
         return self.problem.beam_search(*args, **kwargs, model=self)
@@ -202,6 +207,22 @@ class AttentionModel(nn.Module):
 
         # Calculate log_likelihood
         return log_p.sum(1)
+
+    def prepare_input(self, input):
+        if self.is_vrp or self.is_orienteering or self.is_pctsp:
+            if len(input['loc'].size()) == 4:
+                data = {
+                    'loc' : input['loc'][:, 0, :, :],
+                    'demand' : input['demand'],
+                    'depot' : input['depot']
+                }
+            else: data = input
+        else: # TSP
+            if len(input.size()) == 4:
+                data = input[:, 0, :, :]
+            else: data = input
+
+        return data
 
     def _init_embed(self, input):
 

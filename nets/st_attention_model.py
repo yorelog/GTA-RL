@@ -52,7 +52,8 @@ class StAttentionModel(nn.Module):
                  normalization='batch',
                  n_heads=8,
                  checkpoint_encoder=False,
-                 shrink_size=None):
+                 shrink_size=None,
+                 use_single_time=False):
         super(StAttentionModel, self).__init__()
 
         self.embedding_dim = embedding_dim
@@ -74,6 +75,8 @@ class StAttentionModel(nn.Module):
         self.n_heads = n_heads
         self.checkpoint_encoder = checkpoint_encoder
         self.shrink_size = shrink_size
+
+        self.use_single_time = use_single_time
 
         # Problem specific context parameters (placeholder and step context dimension)
         if self.is_vrp or self.is_orienteering or self.is_pctsp:
@@ -106,7 +109,8 @@ class StAttentionModel(nn.Module):
             embed_dim=embedding_dim,
             n_layers=self.n_encode_layers,
             normalization=normalization,
-            st_attention=True
+            st_attention=True,
+            is_vrp=self.is_vrp
         )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
@@ -134,7 +138,10 @@ class StAttentionModel(nn.Module):
         if self.checkpoint_encoder and self.training:  # Only checkpoint if we need gradients
             embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
         else:
-            embeddings, _ = self.embedder(self._init_embed(input))
+            if not self.use_single_time:
+                embeddings, _ = self.embedder(self._init_embed(input))
+            else:
+                embeddings = self._init_embed(input)
 
         #if len(input.size()) == 4:
         #    embeddings = embeddings[:, 0, :, :]
@@ -207,6 +214,7 @@ class StAttentionModel(nn.Module):
     def _init_embed(self, input):
 
         if self.is_vrp or self.is_orienteering or self.is_pctsp:
+            _, time, _, _ = input['loc'].size()
             if self.is_vrp:
                 features = ('demand', )
             elif self.is_orienteering:
@@ -216,13 +224,13 @@ class StAttentionModel(nn.Module):
                 features = ('deterministic_prize', 'penalty')
             return torch.cat(
                 (
-                    self.init_embed_depot(input['depot'])[:, None, :],
+                    self.init_embed_depot(input['depot'])[:, None, None, :].expand(-1, time, 1, -1),
                     self.init_embed(torch.cat((
                         input['loc'],
-                        *(input[feat][:, :, None] for feat in features)
+                        input['demand'][:, None, :, None].expand(-1, time, -1, -1)
                     ), -1))
                 ),
-                1
+                2
             )
         # TSP
         return self.init_embed(input)
@@ -232,10 +240,11 @@ class StAttentionModel(nn.Module):
         outputs = []
         sequences = []
 
-        state = self.problem.make_state(loc=input[:, 0, :, :])
+
+        state = self.problem.make_state(input=input, index=0)
 
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
-        fixed = self._precompute(embeddings[:, 0, :, :])
+        #fixed = self._precompute(embeddings[:, 0, :, :])
 
         batch_size = state.ids.size(0)
 
@@ -243,10 +252,13 @@ class StAttentionModel(nn.Module):
         i = 0
         while not (self.shrink_size is None and state.all_finished()):
 
-            #current_emb, _ = self.embedder(embeddings[:, :i+1, :, :])
+            if self.use_single_time:
+                current_emb, _ = self.embedder(embeddings[:, :i+1, :, :])
+                fixed = self._precompute(current_emb[:, -1, :, :])
+            else:
+                fixed = self._precompute(embeddings[:, i, :, :])
 
-            fixed = self._precompute(embeddings[:, i, :, :])
-            state = state.update_state(input[:, i, :, :])
+            state = state.update_state(input=input, index=i)
 
             if self.shrink_size is not None:
                 unfinished = torch.nonzero(state.get_finished() == 0)

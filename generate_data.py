@@ -7,6 +7,17 @@ from utils.data_utils import check_extension, save_dataset
 def generate_tsp_data(dataset_size, tsp_size):
     return np.random.uniform(size=(dataset_size, tsp_size, 2)).tolist()
 
+def generate_dynamic_tsp_data(dataset_size, num_nodes, threshold=0.1):
+    stack = []
+    init = np.random.uniform(0, 1, (dataset_size, num_nodes, 2))
+    for i in range(num_nodes):
+        stack.append(init)
+        init = np.clip(init + np.random.uniform(-threshold, threshold, (dataset_size, num_nodes, 2)), 0, 1)
+
+    np_stack = np.stack(stack, axis=1)
+
+    return np_stack
+
 
 def generate_vrp_data(dataset_size, vrp_size):
     CAPACITIES = {
@@ -104,7 +115,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_distribution', type=str, default='all',
                         help="Distributions to generate for problem, default 'all'.")
 
-    parser.add_argument("--dataset_size", type=int, default=10000, help="Size of the dataset")
+    parser.add_argument("--dataset_size", type=int, default=100, help="Size of the dataset")
     parser.add_argument('--graph_sizes', type=int, nargs='+', default=[20, 50, 100],
                         help="Sizes of problem instances (default 20, 50, 100)")
     parser.add_argument("-f", action='store_true', help="Set true to overwrite")
@@ -117,6 +128,7 @@ if __name__ == "__main__":
 
     distributions_per_problem = {
         'tsp': [None],
+        'dynamic_tsp' : [None],
         'vrp': [None],
         'pctsp': [None],
         'op': ['const', 'unif', 'dist']
@@ -152,6 +164,8 @@ if __name__ == "__main__":
                 np.random.seed(opts.seed)
                 if problem == 'tsp':
                     dataset = generate_tsp_data(opts.dataset_size, graph_size)
+                elif problem == 'dynamic_tsp':
+                    dataset = generate_dynamic_tsp_data(opts.dataset_size, graph_size)
                 elif problem == 'vrp':
                     dataset = generate_vrp_data(
                         opts.dataset_size, graph_size)

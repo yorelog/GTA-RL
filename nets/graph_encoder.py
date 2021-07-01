@@ -20,14 +20,19 @@ class StMultiHeadAttention(nn.Module):
             input_dim,
             embed_dim,
             val_dim=None,
-            key_dim=None
+            key_dim=None,
+            is_vrp=False
     ):
         super(StMultiHeadAttention, self).__init__()
 
         self.n_heads = n_heads
+        self.is_vrp = is_vrp
 
         self.spatial_attention = MultiHeadAttention(n_heads, input_dim, embed_dim, val_dim, key_dim)
         self.temporal_attention = MultiHeadAttention(n_heads, input_dim, embed_dim, val_dim, key_dim)
+
+        self.fixed_emb = torch.nn.Linear(input_dim, input_dim)
+        self.fushed = torch.nn.Linear(2*input_dim, input_dim)
 
     def forward(self, q, h=None, mask=None):
 
@@ -40,12 +45,24 @@ class StMultiHeadAttention(nn.Module):
         shape_temporal = (batch_size, graph_size, time, input_dim)
 
         spatial = q.contiguous().view(batch_size*time, graph_size, input_dim)
-        temporal = q.transpose(1,2).contiguous().view(batch_size*graph_size, time, input_dim)
+
+
+        if self.is_vrp:
+            temporal = q[:,:,1:,:].transpose(1, 2).contiguous().view(batch_size * (graph_size-1), time, input_dim)
+            shape_temporal = (batch_size, graph_size-1, time, input_dim)
+            fixed_out = self.fixed_emb(q[:,:,0,:])
+        else:
+            temporal = q.transpose(1,2).contiguous().view(batch_size*graph_size, time, input_dim)
 
         spatial_out = self.spatial_attention(spatial).view(shape_spatial)
-        temporal_out = self.temporal_attention(temporal).view(shape_temporal).transpose(1,2)
+        temporal_out = self.temporal_attention(temporal).view(shape_temporal).transpose(1, 2)
 
-        fusion = spatial_out + temporal_out #TODO: Implement fusuion
+        if self.is_vrp:
+            temporal_out = torch.cat((fixed_out[:,:,None,:], temporal_out), 2)
+
+        emb_cat = self.fushed(torch.cat((spatial_out, temporal_out), dim=-1))
+        emb_cat = torch.add(spatial_out, temporal_out)
+        fusion = torch.sigmoid(emb_cat)#TODO: Implement fusuion
 
         return fusion
 
@@ -312,13 +329,15 @@ class MultiHeadAttentionLayer(nn.Sequential):
             feed_forward_hidden=512,
             normalization='batch',
             st_attention=False,
+            is_vrp=False
     ):
         super(MultiHeadAttentionLayer, self).__init__(
             SkipConnection(
                 StMultiHeadAttention(
                     n_heads,
                     input_dim=embed_dim,
-                    embed_dim=embed_dim
+                    embed_dim=embed_dim,
+                    is_vrp=is_vrp
                 ) if st_attention else
                 MultiHeadAttention(
                     n_heads,
@@ -374,7 +393,8 @@ class GraphAttentionEncoder(nn.Module):
             node_dim=None,
             normalization='batch',
             feed_forward_hidden=512,
-            st_attention=False
+            st_attention=False,
+            is_vrp=False,
     ):
         super(GraphAttentionEncoder, self).__init__()
 
@@ -382,7 +402,7 @@ class GraphAttentionEncoder(nn.Module):
         self.init_embed = nn.Linear(node_dim, embed_dim) if node_dim is not None else None
 
         self.layers = nn.Sequential(*(
-            MultiHeadAttentionLayer(n_heads, embed_dim, feed_forward_hidden, normalization, st_attention)
+            MultiHeadAttentionLayer(n_heads, embed_dim, feed_forward_hidden, normalization, st_attention, is_vrp)
             for _ in range(n_layers)
         ))
 

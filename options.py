@@ -2,6 +2,7 @@ import os
 import time
 import argparse
 import torch
+from utils.paths import find_next_path_id, createNextFileName
 
 
 def get_options(args=None):
@@ -9,13 +10,14 @@ def get_options(args=None):
         description="Attention based model for solving the Travelling Salesman Problem with Reinforcement Learning")
 
     # Data
-    parser.add_argument('--problem', default='dynamic_tsp', help="The problem to solve, default 'tsp'")
+    parser.add_argument('--problem', default='dynamic_cvrp', help="The problem to solve, default 'tsp'")
     parser.add_argument('--graph_size', type=int, default=20, help="The size of the problem graph")
-    parser.add_argument('--batch_size', type=int, default=64, help='Number of instances per batch during training')
+    parser.add_argument('--batch_size', type=int, default=32, help='Number of instances per batch during training')
     parser.add_argument('--epoch_size', type=int, default=12800, help='Number of instances per epoch during training')
     parser.add_argument('--val_size', type=int, default=10000,
                         help='Number of instances used for reporting validation performance')
     parser.add_argument('--val_dataset', type=str, default=None, help='Dataset file to use for validation')
+    parser.add_argument('--use_single_time', action='store_true', help='Use a single time step data rather than the entire time')
 
     # Model
     parser.add_argument('--model', default='st_attention', help="Model, 'attention' (default) or 'pointer'")
@@ -34,7 +36,7 @@ def get_options(args=None):
     parser.add_argument('--lr_critic', type=float, default=1e-4, help="Set the learning rate for the critic network")
     parser.add_argument('--lr_decay', type=float, default=1.0, help='Learning rate decay per epoch')
     parser.add_argument('--eval_only', action='store_true', help='Set this value to only evaluate model')
-    parser.add_argument('--n_epochs', type=int, default=50, help='The number of epochs to train')
+    parser.add_argument('--n_epochs', type=int, default=100, help='The number of epochs to train')
     parser.add_argument('--seed', type=int, default=1234, help='Random seed to use')
     parser.add_argument('--max_grad_norm', type=float, default=1.0,
                         help='Maximum L2 norm for gradient clipping, default 1.0 (0 to disable clipping)')
@@ -60,9 +62,9 @@ def get_options(args=None):
 
     # Misc
     parser.add_argument('--log_step', type=int, default=50, help='Log info every log_step steps')
-    parser.add_argument('--log_dir', default='logs', help='Directory to write TensorBoard information to')
+    parser.add_argument('--log_dir', default='logs/order', help='Directory to write TensorBoard information to')
     parser.add_argument('--run_name', default='run', help='Name to identify the run')
-    parser.add_argument('--output_dir', default='outputs', help='Directory to write output models to')
+    parser.add_argument('--output_dir', default='outputs/order', help='Directory to write output models to')
     parser.add_argument('--epoch_start', type=int, default=0,
                         help='Start at epoch # (relevant for learning rate decay)')
     parser.add_argument('--checkpoint_epochs', type=int, default=1,
@@ -74,13 +76,20 @@ def get_options(args=None):
 
     opts = parser.parse_args(args)
 
+    #opts.resume = "./outputs/order/dynamic_tsp_20/run_4/epoch-199.pt"
+    opts.use_single_time = False
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
-    opts.run_name = "{}_{}".format(opts.run_name, time.strftime("%Y%m%dT%H%M%S"))
+
+    dir, next_id = createNextFileName(os.path.join(opts.output_dir,"{}_{}".format(opts.problem, opts.graph_size)), opts.run_name)
+    opts.run_name = "{}_{}".format(opts.run_name, next_id)
     opts.save_dir = os.path.join(
         opts.output_dir,
         "{}_{}".format(opts.problem, opts.graph_size),
         opts.run_name
     )
+
+    opts.baseline = 'rollout'
+
     if opts.bl_warmup_epochs is None:
         opts.bl_warmup_epochs = 1 if opts.baseline == 'rollout' else 0
     assert (opts.bl_warmup_epochs == 0) or (opts.baseline == 'rollout')

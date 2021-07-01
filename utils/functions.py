@@ -11,11 +11,12 @@ import torch.nn.functional as F
 
 
 def load_problem(name):
-    from problems import TSP, DTSP, CVRP, SDVRP, OP, PCTSPDet, PCTSPStoch
+    from problems import TSP, DTSP, CVRP, DCVRP, SDVRP, OP, PCTSPDet, PCTSPStoch
     problem = {
         'tsp': TSP,
         'dynamic_tsp' : DTSP,
         'cvrp': CVRP,
+        'dynamic_cvrp' : DCVRP,
         'sdvrp': SDVRP,
         'op': OP,
         'pctsp_det': PCTSPDet,

@@ -264,8 +264,12 @@ def solve_insertion(directory, name, loc, method='random'):
 
 
 def calc_batch_pdist(dataset):
-    diff = (dataset[:, :, None, :] - dataset[:, None, :, :])
-    return torch.matmul(diff[:, :, :, None, :], diff[:, :, :, :, None]).squeeze(-1).squeeze(-1).sqrt()
+    if len(dataset.size()) == 4:
+        diff = (dataset[:, :, :, None, :] - dataset[:, :, None, :, :])
+        return torch.matmul(diff[:, :, :, :, None, :], diff[:, :, :, :, :, None]).squeeze(-1).squeeze(-1).sqrt()
+    else:
+        diff = (dataset[:, :, None, :] - dataset[:, None, :, :])
+        return torch.matmul(diff[:, :, :, None, :], diff[:, :, :, :, None]).squeeze(-1).squeeze(-1).sqrt()
 
 
 def nearest_neighbour(dataset, start='first'):
@@ -302,6 +306,42 @@ def nearest_neighbour(dataset, start='first'):
 
     return total_dist, torch.stack(tour, dim=1)
 
+def dynamic_nearest_neighbour(dataset, start='center'):
+    dist_all = calc_batch_pdist(dataset)
+
+    batch_size, time, graph_size, _ = dataset.size()
+
+    total_dist = dataset.new(batch_size).zero_()
+
+    dist = dist_all[:, 0, :, :]
+
+    if not isinstance(start, torch.Tensor):
+        if start == 'random':
+            start = dataset[:, 0, :, :].new().long().new(batch_size).zero_().random_(0, graph_size)
+        elif start == 'first':
+            start = dataset[:, 0, :, :].new().long().new(batch_size).zero_()
+        elif start == 'center':
+            _, start = dist.mean(2).min(1)  # Minimum total distance to others
+        else:
+            assert False, "Unknown start: {}".format(start)
+
+    current = start
+    dist_to_startnode = torch.gather(dist, 2, current.view(-1, 1, 1).expand(batch_size, graph_size, 1)).squeeze(2)
+    tour = [current]
+
+    for i in range(graph_size - 1):
+        # Mark out current node as option
+        dist_all.scatter_(3, current.view(-1, 1, 1, 1).expand(batch_size, time, graph_size, 1), np.inf)
+        dist = dist_all[:, i, :, :]
+        nn_dist = torch.gather(dist, 1, current.view(-1, 1, 1).expand(batch_size, 1, graph_size)).squeeze(1)
+
+        min_nn_dist, current = nn_dist.min(1)
+        total_dist += min_nn_dist
+        tour.append(current)
+
+    total_dist += torch.gather(dist_to_startnode, 1, current.view(-1, 1)).squeeze(1)
+
+    return total_dist, torch.stack(tour, dim=1)
 
 def solve_all_nn(dataset_path, eval_batch_size=1024, no_cuda=False, dataset_n=None, progress_bar_mininterval=0.1):
     import torch
@@ -319,14 +359,14 @@ def solve_all_nn(dataset_path, eval_batch_size=1024, no_cuda=False, dataset_n=No
         start = time.time()
         batch = move_to(batch, device)
 
-        lengths, tours = nearest_neighbour(batch)
+        lengths, tours = dynamic_nearest_neighbour(batch)
         lengths_check, _ = TSP.get_costs(batch, tours)
 
-        assert (torch.abs(lengths - lengths_check.data) < 1e-5).all()
+        #assert (torch.abs(lengths - lengths_check.data) < 1e-5).all()
 
         duration = time.time() - start
         results.extend(
-            [(cost.item(), np.trim_zeros(pi.cpu().numpy(), 'b'), duration) for cost, pi in zip(lengths, tours)])
+            [(cost.item(), np.trim_zeros(pi.cpu().numpy(), 'b'), duration) for cost, pi in zip(lengths_check, tours)])
 
     return results, eval_batch_size
 
@@ -334,9 +374,9 @@ def solve_all_nn(dataset_path, eval_batch_size=1024, no_cuda=False, dataset_n=No
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("method",
+    parser.add_argument("--method",
                         help="Name of the method to evaluate, 'nn', 'gurobi' or '(nearest|random|farthest)_insertion'")
-    parser.add_argument("datasets", nargs='+', help="Filename of the dataset(s) to evaluate")
+    parser.add_argument("--datasets", nargs='+', help="Filename of the dataset(s) to evaluate")
     parser.add_argument("-f", action='store_true', help="Set true to overwrite")
     parser.add_argument("-o", default=None, help="Name of the results file to write")
     parser.add_argument("--cpus", type=int, help="Number of CPUs to use, defaults to all cores")
@@ -349,6 +389,10 @@ if __name__ == "__main__":
     parser.add_argument('--results_dir', default='results', help="Name of results directory")
 
     opts = parser.parse_args()
+    opts.method = 'nn'
+    opts.datasets = ["../../data/dynamic_tsp/dynamic_tsp20_test_seed1234.pkl"]
+    #opts.datasets = ["../../data/tsp/tsp20_test_seed1234.pkl"]
+    opts.f = True
 
     assert opts.o is None or len(opts.datasets) == 1, "Cannot specify result filename with more than one dataset"
 

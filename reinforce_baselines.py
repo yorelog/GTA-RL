@@ -51,8 +51,8 @@ class WarmupBaseline(Baseline):
         return self.warmup_baseline.unwrap_batch(batch)
 
     def eval(self, x, c):
-        if len(x.size()) == 4:
-            x = x[:,0,:,:]
+        #if len(x.size()) == 4:
+        #    x = x[:,0,:,:]
         if self.alpha == 1:
             return self.baseline.eval(x, c)
         if self.alpha == 0:

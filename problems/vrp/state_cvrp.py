@@ -49,10 +49,13 @@ class StateCVRP(NamedTuple):
     #     return len(self.used_capacity)
 
     @staticmethod
-    def initialize(input, visited_dtype=torch.uint8):
+    def initialize(input, visited_dtype=torch.uint8, index=-1):
 
         depot = input['depot']
-        loc = input['loc']
+        if index != -1:
+            loc = input['loc'][:,index,:,:]
+        else:
+            loc = input['loc']
         demand = input['demand']
 
         batch_size, n_loc, _ = loc.size()
@@ -81,6 +84,14 @@ class StateCVRP(NamedTuple):
         assert self.all_finished()
 
         return self.lengths + (self.coords[self.ids, 0, :] - self.cur_coord).norm(p=2, dim=-1)
+
+    def update_state(self, input, index=-1):
+        depot = input['depot']
+        if index != -1:
+            loc = input['loc'][:,index,:,:]
+        else:
+            loc = input['loc']
+        return self._replace(coords=torch.cat((depot[:, None, :], loc), -2))
 
     def update(self, selected):
 
