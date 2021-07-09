@@ -182,6 +182,18 @@ def plot_tsp(xy, tour, ax1, total_xy=None, title=""):
 
     ax1.set_title('Algorithm {}, {} nodes, total length {:.2f}'.format(title, len(tour), lengths[-1]))
 
+def plot_tsp_with_data(xy, tour, title=""):
+    fig, ax = plt.subplots(figsize=(10, 10))
+    if len(xy.shape) == 3:
+        ordered = np.array([np.arange(len(tour)), tour]).T
+        ordered = ordered[ordered[:, 1].argsort()]
+        coords = xy[ordered[:, 0], ordered[:, 1]]
+        plot_tsp(coords, tour, ax, xy, title)
+    else:
+        plot_tsp(xy, tour, ax)
+    plt.show()
+
+
 def run_test(opts):
 
     if opts.dynamic:
@@ -236,13 +248,13 @@ def test_gurobi(filename, dynamic, time=60):
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dynamic", action='store_true', help="Solve the Dynamic TSP")
-    parser.add_argument('--graph_size', type=int, default=20, help="The size of the problem graph")
+    parser.add_argument('--graph_size', type=int, default=50, help="The size of the problem graph")
     parser.add_argument('--intensity', type=int, default=0.1, help="How much dynamic nodes should change over time")
     parser.add_argument("--use_gurobi", action='store_true', help="Use gurobi optimizer to solve the TSP")
     parser.add_argument("--baseline", action='store_true', help="Use static baseline")
     parser.add_argument('--load_path', help='Path to load model parameters and optimizer state from')
     parser.add_argument('--load_data', help='Path to load dataset')
-    parser.add_argument('--gurobi_time', type=int, default=20, help="Time limit for Gurobi Solver")
+    parser.add_argument('--gurobi_time', type=int, default=6000, help="Time limit for Gurobi Solver")
     parser.add_argument('--problem', type=str, default=20, help="Problem to solve")
 
     opts = parser.parse_args(args=None)
@@ -251,12 +263,12 @@ if __name__=="__main__":
     opts.baseline = False
 
     if not opts.baseline:
-        opts.load_path = 'outputs/dynamic_tsp_20/run_20210616T122912'
+        opts.load_path = 'outputs/order/dynamic_tsp_20/run_4'
     else:
         opts.load_path = 'pretrained/tsp_20/'
 
     if opts.dynamic:
-        opts.load_data = 'data/dynamic_tsp/dynamic_tsp20_test_seed1234.pkl'
+        opts.load_data = 'data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl'
     else:
         opts.load_data = 'data/tsp/tsp20_test_seed1234.pkl'
 

@@ -53,7 +53,8 @@ class StAttentionModel(nn.Module):
                  n_heads=8,
                  checkpoint_encoder=False,
                  shrink_size=None,
-                 use_single_time=False):
+                 use_single_time=False,
+                 sum_encoder=False):
         super(StAttentionModel, self).__init__()
 
         self.embedding_dim = embedding_dim
@@ -77,6 +78,7 @@ class StAttentionModel(nn.Module):
         self.shrink_size = shrink_size
 
         self.use_single_time = use_single_time
+        self.sum_encoder = False
 
         # Problem specific context parameters (placeholder and step context dimension)
         if self.is_vrp or self.is_orienteering or self.is_pctsp:
@@ -159,7 +161,7 @@ class StAttentionModel(nn.Module):
         return cost, ll
 
     def beam_search(self, *args, **kwargs):
-        return self.problem.beam_search(*args, **kwargs, model=self)
+        return self.problem.beam_search(*args, **kwargs, model=self, dynamic=True)
 
     def precompute_fixed(self, input):
         embeddings, _ = self.embedder(self._init_embed(input))
@@ -240,9 +242,12 @@ class StAttentionModel(nn.Module):
         outputs = []
         sequences = []
 
-
-        state = self.problem.make_state(input=input, index=0)
-
+        if self.sum_encoder:
+            g = embeddings.mean(dim=1)
+            state = self.problem.make_state(g)
+            fixed = self._precompute(g)
+        else:
+            state = self.problem.make_state(input=input, index=0)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         #fixed = self._precompute(embeddings[:, 0, :, :])
 
@@ -255,10 +260,13 @@ class StAttentionModel(nn.Module):
             if self.use_single_time:
                 current_emb, _ = self.embedder(embeddings[:, :i+1, :, :])
                 fixed = self._precompute(current_emb[:, -1, :, :])
+                state = state.update_state(input=input, index=i)
+            elif self.sum_encoder:
+                pass
             else:
                 fixed = self._precompute(embeddings[:, i, :, :])
+                state = state.update_state(input=input, index=i)
 
-            state = state.update_state(input=input, index=i)
 
             if self.shrink_size is not None:
                 unfinished = torch.nonzero(state.get_finished() == 0)

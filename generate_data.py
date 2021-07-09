@@ -18,6 +18,33 @@ def generate_dynamic_tsp_data(dataset_size, num_nodes, threshold=0.1):
 
     return np_stack
 
+def generate_dynamic_vrp_customer_data(dataset_size, num_nodes, threshold=0.1):
+    stack = []
+    init = np.random.uniform(0, 1, (dataset_size, num_nodes, 2))
+    for i in range(num_nodes*2):
+        stack.append(init)
+        init = np.clip(init + np.random.uniform(-threshold, threshold, (dataset_size, num_nodes, 2)), 0, 1)
+
+    np_stack = np.stack(stack, axis=1)
+
+    return np_stack
+
+
+def generate_dynamic_vrp_data(dataset_size, vrp_size, threshold=0.1):
+    CAPACITIES = {
+        10: 20.,
+        20: 30.,
+        50: 40.,
+        100: 50.
+    }
+
+
+    return list(zip(
+        np.random.uniform(size=(dataset_size, 2)).tolist(),  # Depot location
+        generate_dynamic_vrp_customer_data(dataset_size, vrp_size, threshold).tolist(),  # Node locations
+        np.random.randint(1, 10, size=(dataset_size, vrp_size)).tolist(),  # Demand, uniform integer 1 ... 9
+        np.full(dataset_size, CAPACITIES[vrp_size]).tolist()  # Capacity, same for whole dataset
+    ))
 
 def generate_vrp_data(dataset_size, vrp_size):
     CAPACITIES = {
@@ -32,7 +59,6 @@ def generate_vrp_data(dataset_size, vrp_size):
         np.random.randint(1, 10, size=(dataset_size, vrp_size)).tolist(),  # Demand, uniform integer 1 ... 9
         np.full(dataset_size, CAPACITIES[vrp_size]).tolist()  # Capacity, same for whole dataset
     ))
-
 
 def generate_op_data(dataset_size, op_size, prize_type='const'):
     depot = np.random.uniform(size=(dataset_size, 2))
@@ -119,7 +145,7 @@ if __name__ == "__main__":
     parser.add_argument('--graph_sizes', type=int, nargs='+', default=[20, 50, 100],
                         help="Sizes of problem instances (default 20, 50, 100)")
     parser.add_argument("-f", action='store_true', help="Set true to overwrite")
-    parser.add_argument('--seed', type=int, default=1234, help="Random seed")
+    parser.add_argument('--seed', type=int, default=4321, help="Random seed")
 
     opts = parser.parse_args()
 
@@ -130,6 +156,7 @@ if __name__ == "__main__":
         'tsp': [None],
         'dynamic_tsp' : [None],
         'vrp': [None],
+        'dynamic_vrp': [None],
         'pctsp': [None],
         'op': ['const', 'unif', 'dist']
     }
@@ -168,6 +195,9 @@ if __name__ == "__main__":
                     dataset = generate_dynamic_tsp_data(opts.dataset_size, graph_size)
                 elif problem == 'vrp':
                     dataset = generate_vrp_data(
+                        opts.dataset_size, graph_size)
+                elif problem == 'dynamic_vrp':
+                    dataset = generate_dynamic_vrp_data(
                         opts.dataset_size, graph_size)
                 elif problem == 'pctsp':
                     dataset = generate_pctsp_data(opts.dataset_size, graph_size)

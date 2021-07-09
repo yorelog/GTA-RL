@@ -61,7 +61,7 @@ class StMultiHeadAttention(nn.Module):
             temporal_out = torch.cat((fixed_out[:,:,None,:], temporal_out), 2)
 
         emb_cat = self.fushed(torch.cat((spatial_out, temporal_out), dim=-1))
-        emb_cat = torch.add(spatial_out, temporal_out)
+        #emb_cat = torch.add(spatial_out, temporal_out)
         fusion = torch.sigmoid(emb_cat)#TODO: Implement fusuion
 
         return fusion
@@ -125,7 +125,7 @@ class MultiHeadAttention(nn.Module):
 
         n_query = q.size(1)
         assert q.size(0) == batch_size
-        assert q.size(2) == input_dim
+        #assert q.size(2) == input_dim
         assert input_dim == self.input_dim, "Wrong embedding dimension of input"
 
         hflat = h.contiguous().view(-1, input_dim)
@@ -411,7 +411,7 @@ class GraphAttentionEncoder(nn.Module):
         assert mask is None, "TODO mask not yet supported!"
 
         # Batch multiply to get initial embeddings of nodes
-        h = self.init_embed(x.view(-1, x.size(-1))).view(*x.size()[:2], -1) if self.init_embed is not None else x
+        h = self.init_embed(x.view(-1, x.size(-1))).view(*x.size()[:-1], -1) if self.init_embed is not None else x
 
         h = self.layers(h)
 

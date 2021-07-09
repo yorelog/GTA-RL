@@ -78,6 +78,9 @@ def run(opts):
     model_ = get_inner_model(model)
     model_.load_state_dict({**model_.state_dict(), **load_data.get('model', {})})
 
+    dynamic = False
+    if opts.model == 'st_attention':
+        dynamic = True
     # Initialize baseline
     if opts.baseline == 'exponential':
         baseline = ExponentialBaseline(opts.exp_beta)
@@ -99,7 +102,8 @@ def run(opts):
                     opts.embedding_dim,
                     opts.hidden_dim,
                     opts.n_encode_layers,
-                    opts.normalization
+                    opts.normalization,
+                    dynamic
                 )
             ).to(opts.device)
         )
@@ -135,9 +139,10 @@ def run(opts):
                 if torch.is_tensor(v):
                     state[k] = v.to(opts.device)
 
+
     # Initialize learning rate scheduler, decay by lr_decay once per epoch!
     lr_scheduler = optim.lr_scheduler.LambdaLR(optimizer, lambda epoch: opts.lr_decay ** epoch)
-
+    #optimizer.param_groups[0]['lr'] = opts.lr_model
     # Start the actual training loop
     val_dataset = problem.make_dataset(
         size=opts.graph_size, num_samples=opts.val_size, filename=opts.val_dataset, distribution=opts.data_distribution)

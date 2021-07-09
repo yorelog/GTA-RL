@@ -29,7 +29,7 @@ def _dynamic_beam_search(problem, input, model, beam_size, propose_expansions=No
 
     i = 0
 
-    state = problem.make_state(input[:, i, :, :])
+    state = problem.make_state(input, index=i)
     beam = BatchBeam.initialize(state)
 
     embeddings, _ = model.embedder(model._init_embed(input))

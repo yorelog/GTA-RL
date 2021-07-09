@@ -173,6 +173,8 @@ def _eval_dataset(model, dataset, width, softmax_temp, opts, device):
 
     return results
 
+from test import plot_tsp_with_data, solve_dynamic_euclidian_tsp
+import pickle
 
 if __name__ == "__main__":
 
@@ -204,24 +206,45 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true',
                         help='Use multiprocessing to parallelize over multiple GPUs')
 
-    opts = parser.parse_args()
+    # plot
+    parser.add_argument('--plot', action='store_true', help='Use to plot the computed solution')
+    parser.add_argument('--plot_index', type=int, default=0,  help='Index of the batch to plot')
+    parser.add_argument("--use_gurobi", action='store_true', help="Use gurobi optimizer to solve the TSP")
 
+    opts = parser.parse_args()
+    opts.f =True
     dynamic = True
+    opts.plot = False
+    opts.use_gurobi = False
+
     if dynamic:
-        opts.datasets = ["data/dynamic_tsp/dynamic_tsp20_test_seed1234.pkl"]
-        opts.model = "outputs/order/dynamic_tsp_20/run_10/"
+        opts.datasets = ["data/dynamic_vrp/dynamic_vrp20_validation_seed4321.pkl"]
+        opts.model = "outputs/icde/dynamic_cvrp_20/run_3/"
     else:
-        opts.datasets = ["data/tsp/tsp20_test_seed1234.pkl"]
-        opts.model = "pretrained/tsp_20/"
+        opts.datasets = ["data/dynamic_tsp/dynamic_tsp50_validation_seed4321.pkl"]
+        opts.model = "outputs/icde/dynamic_tsp_20/run_12/"
 
     opts.decode_strategy = "bs"
-    opts.width = [12]
+    opts.width = [10]
 
     assert opts.o is None or (len(opts.datasets) == 1 and len(opts.width) <= 1), \
         "Cannot specify result filename with more than one dataset or more than one width"
 
     widths = opts.width if opts.width is not None else [0]
 
+    outputs = []
     for width in widths:
         for dataset_path in opts.datasets:
-            eval_dataset(dataset_path, width, opts.softmax_temperature, opts)
+            outputs.append(eval_dataset(dataset_path, width, opts.softmax_temperature, opts))
+
+    dataset = opts.datasets[0]
+    if opts.plot:
+        with open(dataset, 'rb') as f:
+            data = pickle.load(f)
+        plot_tsp_with_data(data[opts.plot_index], outputs[0][1][opts.plot_index], "RL")
+
+    if opts.use_gurobi:
+        with open(dataset, 'rb') as f:
+            data = pickle.load(f)
+        tour_length, tour_gb = solve_dynamic_euclidian_tsp(data[opts.plot_index])
+        plot_tsp_with_data(data[opts.plot_index], tour_gb, "GB")

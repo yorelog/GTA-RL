@@ -182,11 +182,11 @@ def solve_dynamic_euclidian_tsp(points, threads=0, timeout=None, gap=None):
 def solve_all_gurobi(dataset, dynamic, time):
     results = []
     for i, instance in enumerate(dataset):
-        print ("Solving instance {}".format(i))
         if dynamic:
             result = solve_dynamic_euclidian_tsp(instance, timeout=time)
         else:
             result = solve_euclidian_tsp(instance, timeout=time)
+        print("Solved instance {} with tour length {}".format(i,result))
         results.append(result)
     return results
 

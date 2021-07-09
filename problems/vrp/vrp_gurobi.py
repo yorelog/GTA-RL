@@ -117,7 +117,32 @@ def solve_dynamic_euclidian_vrp(xy, depot, dem, timeout=None, gap=None):
 
     return m.objVal, selected
 
+def load_from_path(filename):
+
+    assert os.path.splitext(filename)[1] == '.pkl'
+    with open(filename, 'rb') as f:
+        data = pickle.load(f)
+
+    return data
+
+def solve_all_vrp(dataset, dynamic, time):
+    total_length = 0
+    i = 0
+    for depot, xy, demand, cap in load_from_path(dataset):
+        xy = np.array(xy)
+        depot = np.array([depot])
+        demand = np.array(demand) / cap
+        length, tour = solve_dynamic_euclidian_vrp(xy, depot, demand, timeout=time)
+        total_length += length
+        print("Solved instance {} with tour length {}".format(i, length))
+        i += 1
+
+    print("Average Legnth {}".format(total_length/i))
+
+import matplotlib.cm as cm
 if __name__=="__main__":
+
+    solve_all_vrp("../../data/dynamic_vrp/dynamic_vrp20_validation_seed4321.pkl", dynamic=True, time=300)
 
     size = 10
 
@@ -140,10 +165,14 @@ if __name__=="__main__":
     xy = np.concatenate((depot, xy), axis=1)
 
     #xy = np.concatenate((depot, xy))
-    for i, j in tour:
-        plt.plot([xy[i][0], xy[j][0]], [xy[i][1], xy[j][1]], c='g', zorder=0)
-    plt.plot(xy[0][0], xy[0][1], c='r', marker='s')
-    plt.scatter(xy[1:, 0], xy[1:, 1], c='b')
+    for t, i, j in tour:
+        next = 0 if t == size*2-1 else t+1
+        plt.plot([xy[t][i][0], xy[next][j][0]], [xy[t][i][1], xy[next][j][1]], c='g', zorder=0)
+    plt.plot(xy[0][0][0], xy[0][0][1], c='r', marker='s')
+
+    colors = cm.rainbow(np.linspace(0, 1, size))
+    for i in range(size):
+        plt.scatter(xy[:, i, 0], xy[:, i, 1], c=colors[i])
     plt.show()
 
 

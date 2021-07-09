@@ -10,7 +10,8 @@ class CriticNetwork(nn.Module):
         embedding_dim,
         hidden_dim,
         n_layers,
-        encoder_normalization
+        encoder_normalization,
+        st_attention
     ):
         super(CriticNetwork, self).__init__()
 
@@ -21,7 +22,8 @@ class CriticNetwork(nn.Module):
             n_heads=8,
             embed_dim=embedding_dim,
             n_layers=n_layers,
-            normalization=encoder_normalization
+            normalization=encoder_normalization,
+            st_attention=st_attention
         )
 
         self.value_head = nn.Sequential(

@@ -72,22 +72,30 @@ class CVRP(object):
 
     @staticmethod
     def beam_search(input, beam_size, expand_size=None,
-                    compress_mask=False, model=None, max_calc_batch_size=4096):
+                    compress_mask=False, model=None, max_calc_batch_size=4096, dynamic=False):
 
         assert model is not None, "Provide model"
 
-        fixed = model.precompute_fixed(input)
+        if dynamic:
+            def propose_expansions(beam, fixed):
+                return model.propose_expansions(
+                    beam, fixed, expand_size, normalize=True, max_calc_batch_size=max_calc_batch_size
+                )
 
-        def propose_expansions(beam):
-            return model.propose_expansions(
-                beam, fixed, expand_size, normalize=True, max_calc_batch_size=max_calc_batch_size
+            return beam_search(dynamic, CVRP, input, model, beam_size, propose_expansions)
+        else:
+            fixed = model.precompute_fixed(input)
+
+            def propose_expansions(beam):
+                return model.propose_expansions(
+                    beam, fixed, expand_size, normalize=True, max_calc_batch_size=max_calc_batch_size
+                )
+
+            state = CVRP.make_state(
+                input, visited_dtype=torch.int64 if compress_mask else torch.uint8
             )
 
-        state = CVRP.make_state(
-            input, visited_dtype=torch.int64 if compress_mask else torch.uint8
-        )
-
-        return beam_search(state, beam_size, propose_expansions)
+            return beam_search(state, beam_size, propose_expansions)
 
 
 class SDVRP(object):
