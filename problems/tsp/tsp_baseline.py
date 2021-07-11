@@ -390,7 +390,7 @@ if __name__ == "__main__":
 
     opts = parser.parse_args()
     opts.method = 'nn'
-    opts.datasets = ["../../data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl"]
+    opts.datasets = ["../../data/dynamic_tsp/dynamic_tsp20_validation_seed4321.pkl"]
     #opts.datasets = ["../../data/tsp/tsp20_test_seed1234.pkl"]
     opts.f = True
 

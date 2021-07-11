@@ -10,10 +10,10 @@ def get_options(args=None):
         description="Attention based model for solving the Travelling Salesman Problem with Reinforcement Learning")
 
     # Data
-    parser.add_argument('--problem', default='dynamic_cvrp', help="The problem to solve, default 'tsp'")
-    parser.add_argument('--graph_size', type=int, default=50, help="The size of the problem graph")
-    parser.add_argument('--batch_size', type=int, default=8, help='Number of instances per batch during training')
-    parser.add_argument('--epoch_size', type=int, default=1280, help='Number of instances per epoch during training')
+    parser.add_argument('--problem', default='dynamic_tsp', help="The problem to solve, default 'tsp'")
+    parser.add_argument('--graph_size', type=int, default=20, help="The size of the problem graph")
+    parser.add_argument('--batch_size', type=int, default=32, help='Number of instances per batch during training')
+    parser.add_argument('--epoch_size', type=int, default=12800, help='Number of instances per epoch during training')
     parser.add_argument('--val_size', type=int, default=100,
                         help='Number of instances used for reporting validation performance')
     parser.add_argument('--val_dataset', type=str, default=None, help='Dataset file to use for validation')
@@ -34,7 +34,7 @@ def get_options(args=None):
     # Training
     parser.add_argument('--lr_model', type=float, default=1e-4, help="Set the learning rate for the actor network")
     parser.add_argument('--lr_critic', type=float, default=1e-4, help="Set the learning rate for the critic network")
-    parser.add_argument('--lr_decay', type=float, default=.9, help='Learning rate decay per epoch')
+    parser.add_argument('--lr_decay', type=float, default=1, help='Learning rate decay per epoch')
     parser.add_argument('--eval_only', action='store_true', help='Set this value to only evaluate model')
     parser.add_argument('--n_epochs', type=int, default=50, help='The number of epochs to train')
     parser.add_argument('--seed', type=int, default=1234, help='Random seed to use')
@@ -75,8 +75,8 @@ def get_options(args=None):
     parser.add_argument('--no_progress_bar', action='store_true', help='Disable progress bar')
 
     opts = parser.parse_args(args)
-    opts.val_dataset = "./data/dynamic_vrp/dynamic_vrp50_validation_seed4321.pkl"
-    opts.resume = "./outputs/icde/dynamic_cvrp_20/run_3/epoch-49.pt"
+    opts.val_dataset = "./data/dynamic_tsp/dynamic_tsp20_test_seed1234.pkl"
+    opts.resume = "./outputs/icde/dynamic_tsp_20/run_9/epoch-49.pt"
     opts.use_single_time = False
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
 

@@ -182,11 +182,11 @@ if __name__ == "__main__":
     parser.add_argument("--datasets", type=str, default=None, help="Filename of the dataset(s) to evaluate")
     parser.add_argument("-f", action='store_true', help="Set true to overwrite")
     parser.add_argument("-o", default=None, help="Name of the results file to write")
-    parser.add_argument('--val_size', type=int, default=10000,
+    parser.add_argument('--val_size', type=int, default=100,
                         help='Number of instances used for reporting validation performance')
     parser.add_argument('--offset', type=int, default=0,
                         help='Offset where to start in dataset (default 0)')
-    parser.add_argument('--eval_batch_size', type=int, default=1024,
+    parser.add_argument('--eval_batch_size', type=int, default=10,
                         help="Batch size to use during (baseline) evaluation")
     # parser.add_argument('--decode_type', type=str, default='greedy',
     #                     help='Decode type, greedy or sampling')
@@ -218,8 +218,8 @@ if __name__ == "__main__":
     opts.use_gurobi = False
 
     if dynamic:
-        opts.datasets = ["data/dynamic_vrp/dynamic_vrp20_validation_seed4321.pkl"]
-        opts.model = "outputs/icde/dynamic_cvrp_20/run_3/"
+        opts.datasets = ["data/dynamic_tsp/dynamic_tsp20_validation_seed4321.pkl"]
+        opts.model = "outputs/icde/dynamic_tsp_20/run_15/"
     else:
         opts.datasets = ["data/dynamic_tsp/dynamic_tsp50_validation_seed4321.pkl"]
         opts.model = "outputs/icde/dynamic_tsp_20/run_12/"
