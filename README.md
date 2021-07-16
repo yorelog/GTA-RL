@@ -6,7 +6,7 @@ Currently, dynamic versions of Travelling Salesmen Problem (TSP) and Vehicle Rou
 
 ## Installation
 
-Intall following libraries
+Install following libraries
 
 * Python>=3.8
 * NumPy
@@ -51,7 +51,7 @@ If the --val_dataset is not provided, the validation dataset will be automatical
 
 To enable GTA-RL in real-time mode use  "--use_single_time True"
 
-Refere to [options.py](options.py) for the complete list of parameters
+Refer to [options.py](options.py) for the complete list of parameters
 
 ## Pretrained models
 
@@ -71,9 +71,9 @@ python eval.py data/tsp/tsp20_test_seed1234.pkl
 
 Possible options for --decode_strategy are "greedy" and "bs" (for beam search). Use --beam_width <int> with "bs" option.
 
-## Visulization
+## Visualization
   
-Use the following script to visulize the solution.
+Use the following script to visualize the solution.
 
 ## Acknowledgements
-We thank attention learning to route [https://github.com/wouterkool/attention-learn-to-route] for easily extendable code base. 
+We thank attention learning to route [https://github.com/wouterkool/attention-learn-to-route] for an easily extendable codebase. 
