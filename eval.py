@@ -218,14 +218,14 @@ if __name__ == "__main__":
     opts.use_gurobi = False
 
     if dynamic:
-        opts.datasets = ["data/dynamic_tsp/dynamic_tsp20_validation_seed4321.pkl"]
-        opts.model = "outputs/icde/dynamic_tsp_20/run_15/"
+        opts.datasets = ["data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl"]
+        opts.model = "outputs/icde/dynamic_tsp_10/run_41/epoch-81.pt"
     else:
         opts.datasets = ["data/dynamic_tsp/dynamic_tsp50_validation_seed4321.pkl"]
         opts.model = "outputs/icde/dynamic_tsp_20/run_12/"
 
     opts.decode_strategy = "bs"
-    opts.width = [10]
+    opts.width = [5]
 
     assert opts.o is None or (len(opts.datasets) == 1 and len(opts.width) <= 1), \
         "Cannot specify result filename with more than one dataset or more than one width"

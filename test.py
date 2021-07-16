@@ -268,7 +268,7 @@ if __name__=="__main__":
         opts.load_path = 'pretrained/tsp_20/'
 
     if opts.dynamic:
-        opts.load_data = 'data/dynamic_tsp/dynamic_tsp20_validation_seed4321.pkl'
+        opts.load_data = 'data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl'
     else:
         opts.load_data = 'data/tsp/tsp20_test_seed1234.pkl'
 
