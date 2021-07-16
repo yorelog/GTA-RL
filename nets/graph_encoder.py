@@ -13,6 +13,42 @@ class SkipConnection(nn.Module):
     def forward(self, input):
         return input + self.module(input)
 
+class PositionalEncoding(nn.Module):
+
+    def __init__(self, d_model, dropout=0.1, max_len=100):
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x + self.pe[:,:x.size(1),:]
+        return self.dropout(x)
+
+class PositionalDecoding(nn.Module):
+
+    def __init__(self, d_model, dropout=0.1, max_len=100):
+        super(PositionalDecoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x - self.pe[:,:x.size(1),:]
+        return self.dropout(x)
+
 class StMultiHeadAttention(nn.Module):
     def __init__(
             self,
@@ -30,6 +66,9 @@ class StMultiHeadAttention(nn.Module):
 
         self.spatial_attention = MultiHeadAttention(n_heads, input_dim, embed_dim, val_dim, key_dim)
         self.temporal_attention = MultiHeadAttention(n_heads, input_dim, embed_dim, val_dim, key_dim)
+
+        #self.positional_encode = PositionalEncoding(input_dim, dropout=0.0)
+        #self.positional_decode = PositionalDecoding(input_dim, dropout=0.0)
 
         self.fixed_emb = torch.nn.Linear(input_dim, input_dim)
         self.fushed = torch.nn.Linear(2*input_dim, input_dim)
@@ -288,6 +327,8 @@ class MultiHeadConv2DAttention(nn.Module):
 
         return out
 
+
+
 class Normalization(nn.Module):
 
     def __init__(self, embed_dim, normalization='batch'):
@@ -398,8 +439,12 @@ class GraphAttentionEncoder(nn.Module):
     ):
         super(GraphAttentionEncoder, self).__init__()
 
+
+
         # To map input to embedding space
         self.init_embed = nn.Linear(node_dim, embed_dim) if node_dim is not None else None
+        self.is_st_attention = st_attention
+        self.positional_encode = PositionalEncoding(d_model=embed_dim, dropout=0.0)
 
         self.layers = nn.Sequential(*(
             MultiHeadAttentionLayer(n_heads, embed_dim, feed_forward_hidden, normalization, st_attention, is_vrp)
@@ -412,6 +457,13 @@ class GraphAttentionEncoder(nn.Module):
 
         # Batch multiply to get initial embeddings of nodes
         h = self.init_embed(x.view(-1, x.size(-1))).view(*x.size()[:-1], -1) if self.init_embed is not None else x
+
+        #if self.is_st_attention:
+        #    batch_size, time, graph_size, input_dim = h.size()
+        #    shape_temporal = (batch_size, graph_size, time, input_dim)
+        #
+        #    h = h.transpose(1, 2).contiguous().view(batch_size * graph_size, time, input_dim)
+        #    h = self.positional_encode(h).view(shape_temporal).transpose(1, 2).contiguous()
 
         h = self.layers(h)
 

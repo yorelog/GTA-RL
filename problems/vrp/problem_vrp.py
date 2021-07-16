@@ -198,6 +198,7 @@ class VRPDataset(Dataset):
             CAPACITIES = {
                 10: 20.,
                 20: 30.,
+                40: 35.,
                 50: 40.,
                 100: 50.
             }
