@@ -254,7 +254,7 @@ if __name__=="__main__":
     parser.add_argument("--baseline", action='store_true', help="Use static baseline")
     parser.add_argument('--load_path', help='Path to load model parameters and optimizer state from')
     parser.add_argument('--load_data', help='Path to load dataset')
-    parser.add_argument('--gurobi_time', type=int, default=60, help="Time limit for Gurobi Solver")
+    parser.add_argument('--gurobi_time', type=int, default=6000, help="Time limit for Gurobi Solver")
     parser.add_argument('--problem', type=str, default=20, help="Problem to solve")
 
     opts = parser.parse_args(args=None)

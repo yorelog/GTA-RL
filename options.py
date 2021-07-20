@@ -11,7 +11,7 @@ def get_options(args=None):
 
     # Data
     parser.add_argument('--problem', default='dynamic_tsp', help="The problem to solve, default 'tsp'")
-    parser.add_argument('--graph_size', type=int, default=10, help="The size of the problem graph")
+    parser.add_argument('--graph_size', type=int, default=20, help="The size of the problem graph")
     parser.add_argument('--batch_size', type=int, default=32, help='Number of instances per batch during training')
     parser.add_argument('--epoch_size', type=int, default=12800, help='Number of instances per epoch during training')
     parser.add_argument('--val_size', type=int, default=100,
@@ -75,9 +75,9 @@ def get_options(args=None):
     parser.add_argument('--no_progress_bar', action='store_true', help='Disable progress bar')
 
     opts = parser.parse_args(args)
-    opts.val_dataset = "./data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl"
+    #opts.val_dataset = "./data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl"
     #opts.resume = "outputs/icde/dynamic_cvrp_20/run_7/epoch-49.pt"
-    opts.use_single_time = False
+    #opts.use_single_time = False
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
 
     dir, next_id = createNextFileName(os.path.join(opts.output_dir,"{}_{}".format(opts.problem, opts.graph_size)), opts.run_name)
@@ -88,7 +88,7 @@ def get_options(args=None):
         opts.run_name
     )
 
-    opts.baseline = 'rollout'
+    #opts.baseline = 'rollout'
 
     if opts.bl_warmup_epochs is None:
         opts.bl_warmup_epochs = 1 if opts.baseline == 'rollout' else 0

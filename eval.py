@@ -179,7 +179,8 @@ import pickle
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--datasets", type=str, default=None, help="Filename of the dataset(s) to evaluate")
+    #parser.add_argument("--datasets", type=str, default=None, help="Filename of the dataset(s) to evaluate")
+    parser.add_argument("datasets", nargs='+', help="Filename of the dataset(s) to evaluate")
     parser.add_argument("-f", action='store_true', help="Set true to overwrite")
     parser.add_argument("-o", default=None, help="Name of the results file to write")
     parser.add_argument('--val_size', type=int, default=100,
@@ -213,20 +214,22 @@ if __name__ == "__main__":
 
     opts = parser.parse_args()
     opts.f =True
-    dynamic = True
-    opts.plot = False
-    opts.use_gurobi = False
+    #dynamic = True
+    #opts.plot = False
+    #opts.use_gurobi = False
+    #
+    #if dynamic:
+    #    opts.datasets = ["data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl"]
+    #    opts.model = "pretrained/dynamic_tsp_10/GTA-RL/"
+    #else:
+    #    opts.datasets = ["data/dynamic_tsp/dynamic_tsp50_validation_seed4321.pkl"]
+    #    opts.model = "outputs/icde/dynamic_tsp_20/run_12/"
+    #
+    #opts.decode_strategy = "bs"
+    #opts.width = [5]
 
-    if dynamic:
-        opts.datasets = ["data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl"]
-        opts.model = "outputs/icde/dynamic_tsp_10/run_41/epoch-81.pt"
-    else:
-        opts.datasets = ["data/dynamic_tsp/dynamic_tsp50_validation_seed4321.pkl"]
-        opts.model = "outputs/icde/dynamic_tsp_20/run_12/"
-
-    opts.decode_strategy = "bs"
-    opts.width = [5]
-
+    opts.datasets = ["data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl"]
+    print("Print: ", opts.datasets)
     assert opts.o is None or (len(opts.datasets) == 1 and len(opts.width) <= 1), \
         "Cannot specify result filename with more than one dataset or more than one width"
 

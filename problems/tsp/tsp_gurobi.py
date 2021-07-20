@@ -14,7 +14,7 @@ import numpy as np
 from utils.data_utils import load_dataset, save_dataset
 from gurobipy import *
 import pickle
-
+import time
 
 def solve_euclidian_tsp(points, threads=0, timeout=None, gap=None):
     """
@@ -179,14 +179,16 @@ def solve_dynamic_euclidian_tsp(points, threads=0, timeout=None, gap=None):
     return m.objVal, tour
 
 
-def solve_all_gurobi(dataset, dynamic, time):
+
+def solve_all_gurobi(dataset, dynamic, timeout):
     results = []
+    start_time = time.time()
     for i, instance in enumerate(dataset):
         if dynamic:
-            result = solve_dynamic_euclidian_tsp(instance, timeout=time)
+            result = solve_dynamic_euclidian_tsp(instance, timeout=timeout)
         else:
-            result = solve_euclidian_tsp(instance, timeout=time)
-        print("Solved instance {} with tour length {}".format(i,result))
+            result = solve_euclidian_tsp(instance, timeout=timeout)
+        print("Solved instance {} with tour length {} : Solved in {} seconds".format(i,result, time.time()-start_time))
         results.append(result)
     return results
 
