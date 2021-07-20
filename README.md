@@ -63,7 +63,7 @@ E.g. [pretrained/dynamic_tsp_20](pretrained/dynamic_tsp_20) contains the trained
 Use the following script to evaluate the trained model.
 
 ```bash
-python eval.py data/tsp/tsp20_test_seed1234.pkl 
+python eval.py <location of the generated dataset> 
   --model pretrained/dynamic_tsp_20 
   --decode_strategy <decode stratergy> 
   --eval_batch_size 1
