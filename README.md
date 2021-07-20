@@ -49,7 +49,7 @@ python run.py
 
 If the --val_dataset is not provided, the validation dataset will be automatically generated.
 
-To enable GTA-RL in real-time mode use  "--use_single_time True"
+To enable GTA-RL in real-time mode use  "--use_single_time"
 
 Refer to [options.py](options.py) for the complete list of parameters
 
@@ -64,7 +64,7 @@ Use the following script to evaluate the trained model.
 
 ```bash
 python eval.py <location of the generated dataset> 
-  --model pretrained/dynamic_tsp_20 
+  --model pretrained/dynamic_tsp_20/GTA_RL
   --decode_strategy <decode stratergy> 
   --eval_batch_size 1
 ```
@@ -80,7 +80,7 @@ python eval.py data/tsp/tsp20_test_seed1234.pkl
   --model pretrained/dynamic_tsp_20 
   --decode_strategy <decode stratergy> 
   --eval_batch_size 1
-  --plot True
+  --plot
   --plot_index <index of the batch to plot>
 ```
 For now, only the dynamic TSP problem works with plotting. Use --use_gurobi to plot the solution with gurobi to the same plot_index
