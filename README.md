@@ -64,20 +64,20 @@ Use the following script to evaluate the trained model.
 
 ```bash
 python eval.py <location of the generated dataset> 
-  --model pretrained/dynamic_tsp_20/GTA_RL
+  --model pretrained/dynamic_tsp_20/GTA-RL/
   --decode_strategy <decode stratergy> 
   --eval_batch_size 1
 ```
 
-Possible options for --decode_strategy are "greedy" and "bs" (for beam search). Use --beam_width <int> with "bs" option.
+Possible options for --decode_strategy are "greedy" and "bs" (for beam search). Use --width <int> with "bs" option.
 
 ## Visualization
 Use the following script to visualize the solution.
   
   
 ```bash
-python eval.py data/tsp/tsp20_test_seed1234.pkl 
-  --model pretrained/dynamic_tsp_20 
+python eval.py <location of the generated dataset>
+  --model pretrained/dynamic_tsp_20/GTA-RL/
   --decode_strategy <decode stratergy> 
   --eval_batch_size 1
   --plot

@@ -228,7 +228,7 @@ if __name__ == "__main__":
     #opts.decode_strategy = "bs"
     #opts.width = [5]
 
-    opts.datasets = ["data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl"]
+    #opts.datasets = ["data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl"]
     print("Print: ", opts.datasets)
     assert opts.o is None or (len(opts.datasets) == 1 and len(opts.width) <= 1), \
         "Cannot specify result filename with more than one dataset or more than one width"
