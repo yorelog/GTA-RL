@@ -254,13 +254,14 @@ if __name__=="__main__":
     parser.add_argument("--baseline", action='store_true', help="Use static baseline")
     parser.add_argument('--load_path', help='Path to load model parameters and optimizer state from')
     parser.add_argument('--load_data', help='Path to load dataset')
-    parser.add_argument('--gurobi_time', type=int, default=6000, help="Time limit for Gurobi Solver")
+    parser.add_argument('--gurobi_time', type=int, default=60, help="Time limit for Gurobi Solver")
     parser.add_argument('--problem', type=str, default=20, help="Problem to solve")
 
     opts = parser.parse_args(args=None)
     opts.use_gurobi = True
     opts.dynamic = True
     opts.baseline = False
+    opts.gurobi_time = 20
 
     if not opts.baseline:
         opts.load_path = 'outputs/order/dynamic_tsp_20/run_4'
@@ -268,7 +269,7 @@ if __name__=="__main__":
         opts.load_path = 'pretrained/tsp_20/'
 
     if opts.dynamic:
-        opts.load_data = 'data/dynamic_tsp/dynamic_tsp10_validation_seed4321.pkl'
+        opts.load_data = 'data/dynamic_tsp/dynamic_tsp20_temp_seed4321.pkl'
     else:
         opts.load_data = 'data/tsp/tsp20_test_seed1234.pkl'
 

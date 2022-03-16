@@ -145,7 +145,8 @@ if __name__ == "__main__":
     parser.add_argument('--graph_sizes', type=int, nargs='+', default=[20, 50, 100],
                         help="Sizes of problem instances (default 20, 50, 100)")
     parser.add_argument("-f", action='store_true', help="Set true to overwrite")
-    parser.add_argument('--seed', type=int, default=4321, help="Random seed")
+    parser.add_argument('--seed', type=int, default=54321, help="Random seed")
+    parser.add_argument('--threshold', type=int, default=54321, help="Random seed")
 
     opts = parser.parse_args()
 

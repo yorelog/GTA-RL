@@ -255,12 +255,18 @@ class StAttentionModel(nn.Module):
 
         # Perform decoding steps
         i = 0
+        current_emb = 0
         while not (self.shrink_size is None and state.all_finished()):
 
             if self.use_single_time:
-                current_emb, _ = self.embedder(embeddings[:, :i+1, :, :])
-                fixed = self._precompute(current_emb[:, -1, :, :])
-                state = state.update_state(input=input, index=i)
+                if i%20 == 0:
+                    current_emb, _ = self.embedder(embeddings[:, i:i+20, :, :])
+                    fixed = self._precompute(current_emb[:, 0, :, :])
+                    state = state.update_state(input=input, index=i)
+                else:
+                    fixed = self._precompute(current_emb[:, i % 20, :, :])
+                    state = state.update_state(input=input, index=i)
+
             elif self.sum_encoder:
                 pass
             else:
