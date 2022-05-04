@@ -94,9 +94,12 @@ class DynamicGraph():
         self.reciprocal_dist = np.reciprocal(dist)
 
         self.xy = xy
-        self.phero_matrix = np.zeros(self.dist.shape)
+        self.phero_matrix = np.full(self.dist.shape, 20)
         self.best_phero_matrix = self.phero_matrix
         self.p = p
+
+        self.phero_max = 10
+        self.phero_min = 0.1
 
     def update_phero(self, path_costs):
 
@@ -108,6 +111,9 @@ class DynamicGraph():
             cost_matrix[len(path)-1][path[len(path)-1]][path[0]] += 1/cost
 
         self.phero_matrix = (1-self.p)*self.phero_matrix + cost_matrix
+
+    def clip_phero(self):
+        self.phero_matrix = np.clip(self.phero_matrix, self.phero_min, self.phero_max)
 
     def get_reci_dist(self, current_node, next_node, time=0):
         return self.reciprocal_dist[time][current_node][next_node]
@@ -139,7 +145,7 @@ class Graph():
         self.reciprocal_dist = np.reciprocal(dist)
 
         self.xy = xy
-        self.phero_matrix = np.zeros(self.dist.shape)
+        self.phero_matrix = np.full(self.dist.shape, 1)
         self.best_phero_matrix = self.phero_matrix
         self.p = p
 
@@ -170,7 +176,7 @@ class Graph():
 
 class ACO():
 
-    def __init__(self, xy, iterations=1000, k=20, alpha=0.4, beta=1.2, p=0.2):
+    def __init__(self, xy, iterations=1000, k=50, alpha=1.0, beta=5.0, p=0.2, type=None):
         if len(xy.shape) == 2:
             self.graph = Graph(xy, p)
         else:
@@ -179,6 +185,7 @@ class ACO():
         self.ants = [Ant(alpha, beta, len(xy), i) for i in range(k)]
         self.iterations = iterations
         self.first = True
+        self.type = type
 
         self.test_ant = Ant(alpha, beta, len(xy), -1)
         self.best_tour_cost = np.inf
@@ -190,16 +197,33 @@ class ACO():
                 for ant in self.ants:
                     ant.step(self.graph, self.first)
 
-            path_costs = []
-            for ant in self.ants:
-               path_costs.append(ant.get_path_cost(self.graph))
-               ant.reset()
-
-            self.graph.update_phero(path_costs)
+            self.update_phero()
             self.first = False
             result = self.simulate()
             if log:
                 print("Iteration: ", i, " Cost: ", result)
+
+    def update_phero(self):
+
+        if self.type == 'min-max':
+            lowest_cost = np.inf
+            lowest_path = []
+            for ant in self.ants:
+                path_cost, path = ant.get_path_cost(self.graph)
+                if lowest_cost > path_cost:
+                    lowest_cost = path_cost
+                    lowest_path = path
+                ant.reset()
+            self.graph.update_phero([[lowest_cost, lowest_path]])
+            #self.graph.clip_phero()
+        else:
+            path_costs = []
+            for ant in self.ants:
+               path_costs.append(ant.get_path_cost(self.graph))
+               ant.reset()
+            self.graph.update_phero(path_costs)
+
+
 
     def simulate(self, best_tour=False):
         while not self.test_ant.is_done():
@@ -231,7 +255,8 @@ def solve_all_aco(dataset):
     results = []
     start_time = time.time()
     for i, instance in enumerate(dataset):
-        aco = ACO(instance, iterations=100)
+        aco = ACO(instance, iterations=200, alpha=1, beta=5, p=0.2, k=20,
+              type='min-max')
         aco.run()
         result = aco.get_best_tour()
         print("Solved instance {} with tour length {} : Solved in {} seconds".format(i, result, time.time()-start_time))
@@ -243,7 +268,8 @@ if __name__=="__main__":
     xy = np.random.uniform(0, 1, (50, 2))
     xy = get(20, 0.1)
 
-    aco = ACO(xy, iterations=100)
+    aco = ACO(xy, iterations=1000, alpha=1, beta=2, p=0.8, k=20,
+              type='min-max')
     aco.run(log=True)
     cost, tour = aco.get_best_tour()
     print("Best cost", cost, tour)
