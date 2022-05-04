@@ -10,7 +10,7 @@ from matplotlib.lines import Line2D
 
 from utils import load_model
 from problems.tsp.tsp_gurobi import *
-
+from problems.tsp.tsp_aco import *
   # Put in evaluation mode to not track gradients
 
 
@@ -244,26 +244,33 @@ def test_gurobi(filename, dynamic, time=60):
     print("Results: ", np.mean(lengths))
     return results
 
+def test_aco(filename):
+
+    data = load_from_path(filename)
+    results = solve_all_aco(data)
+    lengths = np.array(results)[:, 0]
+    print("Results: ", np.mean(lengths))
+    return results
+
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dynamic", action='store_true', help="Solve the Dynamic TSP")
     parser.add_argument('--graph_size', type=int, default=20, help="The size of the problem graph")
     parser.add_argument('--intensity', type=int, default=0.1, help="How much dynamic nodes should change over time")
-    parser.add_argument("--use_gurobi", action='store_true', help="Use gurobi optimizer to solve the TSP")
-    parser.add_argument("--baseline", action='store_true', help="Use static baseline")
+    parser.add_argument("--baseline", help="Name of the method to evaluate, 'aco', 'gurobi'")
+    parser.add_argument("--static", action='store_true', help="Use static baseline")
     parser.add_argument('--load_path', help='Path to load model parameters and optimizer state from')
     parser.add_argument('--load_data', help='Path to load dataset')
-    parser.add_argument('--gurobi_time', type=int, default=60, help="Time limit for Gurobi Solver")
+    parser.add_argument('--gurobi_time', type=int, default=30, help="Time limit for Gurobi Solver")
     parser.add_argument('--problem', type=str, default=20, help="Problem to solve")
 
     opts = parser.parse_args(args=None)
-    opts.use_gurobi = True
+    opts.baseline = 'aco'
     opts.dynamic = True
-    opts.baseline = False
     opts.gurobi_time = 20
 
-    if not opts.baseline:
+    if not opts.static:
         opts.load_path = 'outputs/order/dynamic_tsp_20/run_4'
     else:
         opts.load_path = 'pretrained/tsp_20/'
@@ -273,8 +280,10 @@ if __name__=="__main__":
     else:
         opts.load_data = 'data/tsp/tsp20_test_seed1234.pkl'
 
-    if opts.use_gurobi:
+    if opts.baseline == 'gurobi':
         test_gurobi(opts.load_data, opts.dynamic, opts.gurobi_time)
+    elif opts.baseline == 'aco':
+        test_aco(opts.load_data)
     else:
         run_test(opts)
 
