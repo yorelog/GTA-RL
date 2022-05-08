@@ -265,11 +265,11 @@ def load_from_path(filename):
 
 if __name__=="__main__":
     np.random.seed(1234)
-    xy = np.random.uniform(0, 1, (20, 2))
-    xy = get(20, 0.1)
+    xy = np.random.uniform(0, 1, (10, 2))
+    #xy = get(10, 0.1)
     #print(xy)
-    tour_length, tour = solve_dynamic_euclidian_tsp(xy)
-    #tour_length, tour = solve_euclidian_tsp(xy)
+    #tour_length, tour = solve_dynamic_euclidian_tsp(xy)
+    tour_length, tour = solve_euclidian_tsp(xy)
     print("Tour length: ", tour_length, " Tour: ", tour)
 
     fig, ax = plt.subplots(figsize=(10, 10))
