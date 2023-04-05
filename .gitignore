@@ -1,6 +1,7 @@
 data/
 outputs/
 logs/
+runs/
 results/
 __pycache__/
 .idea

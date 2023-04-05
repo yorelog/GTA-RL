@@ -75,7 +75,7 @@ def get_options(args=None):
     parser.add_argument('--no_progress_bar', action='store_true', help='Disable progress bar')
 
     opts = parser.parse_args(args)
-    opts.val_dataset = "./data/dynamic_tsp/dynamic_tsp50_validation_seed4321.pkl"
+    # opts.val_dataset = "./data/dynamic_tsp/dynamic_tsp50_validation_seed4321.pkl"
     #opts.resume = "outputs/icde/dynamic_cvrp_20/run_7/epoch-49.pt"
     opts.use_single_time = True
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
