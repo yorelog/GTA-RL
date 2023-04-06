@@ -1,0 +1,5 @@
+clip_epsilon: 0.2
+hidden_size: 64
+input_size: 2
+lr: 0.001
+output_size: 1
